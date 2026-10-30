@@ -79,8 +79,8 @@ def main():
         from data.riot import ddragon
         snap = ddragon.snapshot()
         print(f"[riot] Data Dragon {snap['version']} Set {snap['set']}: {len(snap['champions'])} champs")
-    except Exception as e:
-        print("[riot] Data Dragon skipped:", e)
+    except Exception as err:
+        print("[riot] Data Dragon skipped:", err)
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=".", help="输出目录")
     ap.add_argument("--no-cache", action="store_true")
