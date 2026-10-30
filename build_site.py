@@ -49,6 +49,15 @@ def matrix(meta, roster, key, order, us, total, sid, title):
         for t in ts:
             g[t][r["pos"]].append(r)
     names = [n for n in order if n in g] + sorted(n for n in g if n not in order)
+    cnt = lambda n: len({r["id"] for p in g[n].values() for r in p})
+    solo = [n for n in names if key == "origins" and cnt(n) == 1]
+    if solo:
+        names = [n for n in names if n not in solo]
+        sg = {"front": [], "mid": [], "back": []}
+        for n in solo:
+            for p in sg: sg[p] += g[n][p]
+        g["单一英雄种族"] = sg; names.append("单一英雄种族")
+        print("solo origins:", solo)
     rows = []
     for n in names:
         cols = []
@@ -56,7 +65,8 @@ def matrix(meta, roster, key, order, us, total, sid, title):
             us_ = sorted(g[n][p], key=lambda x: (x["cost"] or 9, x["name"]))
             inner = "".join(card(meta, r, us, total) for r in us_) or '<div class="emp">—</div>'
             cols.append('<div class="col"><div class="cl">%s</div><div class="cards">%s</div></div>' % (lab, inner))
-        rows.append('<div class="trow"><div class="tn">%s<small>%d 名英雄</small></div>%s</div>' % (
+        sub = ('<small>%s</small>' % e("、".join(solo))) if n == "单一英雄种族" else ""
+        rows.append(('<div class="trow"><div class="tn">%s<small>%d 名英雄</small>' + sub + '</div>%s</div>') % (
             e(n), len({r["id"] for p in g[n].values() for r in p}), "".join(cols)))
     return '<section id="%s"><h2>%s</h2><div class="legend">前排 / 中排 / 后排 · 均名颜色：<span class="good">≤3.8 强</span> <span class="bad">≥4.5 弱</span> · 二/三件装为出场最多组合（胜率%%）</div>%s</section>' % (sid, title, "".join(rows))
 
