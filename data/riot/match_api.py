@@ -13,12 +13,24 @@ import argparse, collections, json, os, sys, time, urllib.error, urllib.request
 HERE = os.path.dirname(__file__)
 
 def api_key():
-    k = os.environ.get("RIOT_API_KEY")
-    if not k:
-        p = os.path.join(HERE, "riot.local.json")
-        if os.path.exists(p):
-            k = json.load(open(p)).get("api_key")
-    return k
+    k = (os.environ.get("RIOT_API_KEY") or "").strip()
+    if k:
+        return k
+    repo = os.path.abspath(os.path.join(HERE, "..", ".."))
+    envp = os.path.join(repo, ".env")
+    if os.path.exists(envp):
+        for line in open(envp):
+            if line.startswith("RIOT_API_KEY="):
+                k = line.split("=", 1)[1].strip().strip(chr(34)+chr(39))
+                if k:
+                    return k
+    loc = os.path.join(HERE, "riot.local.json")
+    if os.path.exists(loc):
+        k = (json.load(open(loc)).get("api_key") or "").strip()
+        if k:
+            return k
+    return ""
+
 
 class Client:
     def __init__(self, key, per2min=95, per1s=18):
