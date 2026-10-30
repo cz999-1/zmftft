@@ -5,3 +5,5 @@ __pycache__/
 data/riot/cache/
 data/riot/riot.local.json
 .env
+config.local*
+.env.local

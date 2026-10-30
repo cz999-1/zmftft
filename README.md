@@ -53,6 +53,23 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
 
 详见 [data/riot/README.md](data/riot/README.md)。
 
+#### Riot 官方源 vs Community Dragon 对比
+
+| 维度 | Riot Data Dragon | Riot Match API | Community Dragon |
+|---|---|---|---|
+| 字段 | id、中文名、费用、羁绊归属、图标路径；效果文案/数值不全 | 对局参与者：名次、等级、英雄+星级+装备、激活羁绊 | 游戏文件解包：技能描述与数值、羁绊各档效果、装备合成配方、完整图标 |
+| 覆盖 | 当前及历史赛季静态数据（多语言） | 真实排位对局（需 key，限流 20/s、100/2min） | 当前赛季 + PBE，含未公开/测试数据 |
+| 更新频率 | 随正式补丁发布，常滞后数天 | 实时 | 补丁/PBE 推送后很快更新 |
+| 需要 key | 否 | 是（RIOT_API_KEY） | 否 |
+
+**分工**：Data Dragon 负责“官方口径”（版本号、中文名、费用校验）；Community Dragon 仍是页面与合成表主数据；Match API 小样本自检并与 tactics.tools 对比；tactics.tools 提供大样本胜率与阵眼。
+
+#### 配置 Riot key（只在本地）
+`cp .env.example .env`，填 `RIOT_API_KEY=`（`.env`、`config.local*`、`data/riot/riot.local.json`、`data/riot/cache/` 均已 gitignore）。然后：
+```bash
+./scripts/refresh_riot.sh   # = python3 -m data.riot.refresh；无 key 时只拉 Data Dragon 并跳过 Match API
+```
+
 ### 刷新数据
 
 ```bash
