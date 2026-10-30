@@ -9,7 +9,7 @@ from generate_tft_table import (fetch_json, fetch_next_data, TACTICS, CDRAGON, D
     CLASS_ORDER, ORIGIN_ORDER, ZH_TRAIT_TO_TID, build_item_meta, item_cn, item_icon, load_unit_builds,
     best_trait_perf, build_roster, detect_set_filter, verdict_section, cdragon_asset_url, CLASS_SET)
 
-import craft
+import craft, synergy
 CACHE = "/tmp/unit_items.json"
 e = lambda s: H.escape(str(s))
 
@@ -169,14 +169,22 @@ def main():
     ver_html = '<section id="ver"><h2>站位结论（种族）</h2><div class="verdict">%s</div></section>' % verdict
     links = '<section id="go"><h2>去哪看</h2><div class="grid three">' + "".join(
         '<a class="box golink" href="%s"><h3>%s</h3><p class="hint">%s</p></a>' % x for x in PAGES[1:]) + '</div></section>'
-    bodies = {"index.html": insights + links + "<script>var H={'#craft':'craft.html','#cls':'class.html','#ori':'origin.html','#ver':'origin.html#ver'};if(H[location.hash])location.replace(H[location.hash]);</script>", "class.html": cls_html, "origin.html": ori_html + ver_html, "craft.html": craft.section()[0]}
-    out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
+    bodies = {"index.html": insights + links + "<script>var H={'#craft':'craft.html','#cls':'class.html','#ori':'origin.html','#ver':'origin.html#ver'};if(H[location.hash])location.replace(H[location.hash]);</script>", "class.html": cls_html, "origin.html": ori_html + ver_html, "synergy.html": "", "craft.html": craft.section()[0]}
+    syn_mat, syn_pages = synergy.build(comps, roster, ORIGIN_ORDER, total, face, U, None)
+    bodies["synergy.html"] = syn_mat
+    out = Path(a.out); out.mkdir(parents=True, exist_ok=True); (out / "synergy").mkdir(exist_ok=True)
+    for old in (out / "synergy").glob("*.html"): old.unlink()
+    for fn, (t, body) in syn_pages.items():
+        nav = "".join('<a href="../%s"%s>%s</a>' % (f, ' class="cur"' if f == "synergy.html" else "", tt) for f, tt, _ in PAGES)
+        doc = TPL.replace("{{PATCH}}", e(patch)).replace("{{N}}", "%d" % total).replace("{{DATE}}", time.strftime("%Y-%m-%d %H:%M")) \
+            .replace("{{CRAFTCSS}}", craft.CSS + synergy.CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", t).replace("{{FILTERS}}", "").replace("{{SEARCH}}", "").replace("{{BODY}}", body).replace('href="index.html"', 'href="../index.html"')
+        (out / fn).write_text(doc, encoding="utf-8")
     for fn, title, _ in PAGES:
         nav = "".join('<a href="%s"%s>%s</a>' % (f, ' class="cur"' if f == fn else "", t) for f, t, _ in PAGES)
         filt = FILTERS if fn in ("class.html", "origin.html") else ""
         search = SEARCH if filt else ""
         doc = TPL.replace("{{PATCH}}", e(patch)).replace("{{N}}", "%d" % total).replace("{{DATE}}", time.strftime("%Y-%m-%d %H:%M")) \
-            .replace("{{CRAFTCSS}}", craft.CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", title).replace("{{FILTERS}}", filt).replace("{{SEARCH}}", search).replace("{{BODY}}", bodies[fn])
+            .replace("{{CRAFTCSS}}", craft.CSS + synergy.CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", title).replace("{{FILTERS}}", filt).replace("{{SEARCH}}", search).replace("{{BODY}}", bodies[fn])
         (out / fn).write_text(doc, encoding="utf-8")
         print("done →", out / fn, len(doc), "bytes")
     print(len(roster), "champions;", len(top), "comps")
@@ -184,6 +192,7 @@ def main():
 PAGES = [("index.html", "首页 · 洞察", "最强阵容、冷门高胜率、三星价值、羁绊强度"),
          ("class.html", "职业站位", "各职业羁绊的前/中/后排英雄与推荐出装"),
          ("origin.html", "种族站位", "各种族羁绊的站位矩阵 + 站位结论"),
+         ("synergy.html", "种族搭配", "种族 × 种族 胜率矩阵，点格子看所有英雄组合"),
          ("craft.html", "装备合成", "Set 18 散件合成表、纹章与冠冕")]
 FILTERS = r'''<div class="filters" id="filters">
   <div class="fg"><span class="fl">费用</span>

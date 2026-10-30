@@ -106,3 +106,13 @@ git add *.html && git commit -m "refresh data" && git push
 - <b>阵眼—三星</b>（黄）：3★ 吃鸡率 − 2★ 吃鸡率 ≥ **+6pp**，且 3★ 样本 ≥ 2000（过滤 4/5 费偶然三星）
 - <b>阵眼—装备</b>（橙）：满 3 件装吃鸡率 − 0 件装 ≥ **+5pp**，且 3 件装样本 ≥ 3000
 - 基础拉克丝（未选形态）排除；一个英雄可同时有两个标签。阈值在 `generate_tft_table.py` 的 `EYE_*` 常量里。
+
+## 种族搭配（synergy.html）
+
+`synergy.html` 是 种族 × 种族 矩阵，每格显示该搭配的**均名**（颜色：绿 <4.2，红 >4.7）和**选率**；点格子进入静态详情页 `synergy/<hash>.html`，列出该搭配下所有英雄组合的均名 / 前四 / 吃鸡 / 场次 / 选率 / 格内占比。
+
+- **“带了”某种族**：阵容中该种族英雄 ≥2 名（单一英雄种族 ≥1），阈值见 `synergy.py` 的 `MIN`
+- **英雄组合（变体）**：阵容里属于这两个种族的英雄集合；相同集合合并统计
+- **主数据**：tactics.tools 主流阵容（team-compositions，按场次加权）；选率 = 场次 / 总棋盘数
+- **对照**：Riot Match 抽样（`data/riot/cache/sample_matches.json`，本地有才用）单独一张表；矩阵里标 “R” 的格子只有 Riot 抽样数据，样本很小仅供参考
+- 由 `python3 build_site.py` 一并生成
