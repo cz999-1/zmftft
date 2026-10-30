@@ -75,6 +75,12 @@ def matrix(meta, roster, key, order, us, total, sid, title):
     return '<section id="%s"><h2>%s</h2><div class="legend">前排 / 中排 / 后排 · 均名颜色：<span class="good">≤3.8 强</span> <span class="bad">≥4.5 弱</span> · 二/三件装为出场最多组合（胜率%%） · <b class="eye ey3">阵眼—三星</b> 3★比2★吃鸡率≥+6pp（3★样本≥2000） <b class="eye eyi">阵眼—装备</b> 3件装比0件吃鸡率≥+5pp（样本≥3000）</div>%s</section>' % (sid, title, "".join(rows))
 
 def main():
+    try:  # optional: refresh Riot Data Dragon snapshot (no key needed); never blocks build
+        from data.riot import ddragon
+        snap = ddragon.snapshot()
+        print(f"[riot] Data Dragon {snap['version']} Set {snap['set']}: {len(snap['champions'])} champs")
+    except Exception as e:
+        print("[riot] Data Dragon skipped:", e)
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=".", help="输出目录")
     ap.add_argument("--no-cache", action="store_true")

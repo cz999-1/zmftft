@@ -2,3 +2,6 @@ __pycache__
 __pycache__/
 __pycache__/
 *.pyc
+data/riot/cache/
+data/riot/riot.local.json
+.env

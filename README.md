@@ -43,9 +43,20 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
   - `build_site.py`：把以上内容组装成多页站点（共享顶部导航，内联 CSS/JS）：`index.html` 首页·洞察、`class.html` 职业站位、`origin.html` 种族站位+站位结论（只有 1 名英雄的种族合并为「单一英雄种族」一行）、`craft.html` 装备合成；页面间用相对链接互跳，旧的 `#craft` 等锚点会自动跳到新页面
 - **部署**：4 个 `*.html` 推到 `main`，由 GitHub Pages 直接托管
 
+### 数据从哪来（分工）
+| 来源 | 角色 |
+|---|---|
+| **Riot Data Dragon**（官方，免 key） | 当前版本号、英雄/装备/羁绊官方中文名与费用、官方图标；`build_site.py` 每次自动拉取快照校验赛季 |
+| **Riot TFT Match API**（官方，需 key） | 偶尔抽样高分段原始对局，算平均名次/三星/满装，用于验证阵容并与 tactics.tools 对比 |
+| **Community Dragon** | 现有主数据：完整游戏文件解包（羁绊效果数值、合成配方、技能描述、更全的图标），更新最快 |
+| **tactics.tools** | 大样本统计：胜率、出装、阵眼规则 |
+
+详见 [data/riot/README.md](data/riot/README.md)。
+
 ### 刷新数据
 
 ```bash
+python3 -m data.riot.match_api   # 可选，需 RIOT_API_KEY；随后 python3 -m data.riot.compare
 python3 build_site.py            # 生成 index/class/origin/craft.html（会缓存出装数据到 /tmp）
 python3 build_site.py --no-cache # 强制重新抓取
 git add *.html && git commit -m "refresh data" && git push
