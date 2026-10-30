@@ -29,6 +29,10 @@ def build_html(meta, b, label):
     return '<div class="bd" title="%s"><b>%s</b>%s<span>%.0f%%</span></div>' % (
         e(" + ".join(item_cn(meta, i) for i in ids)), label, icons, b.get("won") or 0)
 
+EYE_LBL = {"star": ("ey3", "阵眼—三星", "3★ 比 2★ 吃鸡率 +%.1fpp"), "item": ("eyi", "阵眼—装备", "满3件装比0件 吃鸡率 +%.1fpp")}
+def eyes(tags):
+    return "".join('<b class="eye %s" title="%s">%s</b>' % (EYE_LBL[k][0], EYE_LBL[k][2] % d, EYE_LBL[k][1]) for k, d in tags)
+
 def card(meta, r, us, total):
     s = us.get(r["id"]) or {}
     stat = ""
@@ -37,10 +41,10 @@ def card(meta, r, us, total):
             pcls(s["place"]), s["place"], s["top4"], s["count"] / total * 100)
     tags = "".join("<i>%s</i>" % e(t) for t in r["traits"])
     return ('<div class="ch" data-k="%s" data-cost="%s" data-pos="%s" style="--c:%s"><div class="ph"><img src="%s" alt="%s" loading="lazy" onerror="this.style.opacity=.2">'
-            '<em>%s</em></div><div class="nm">%s</div><div class="tg">%s</div>%s%s%s</div>') % (
+            '<em>%s</em></div><div class="nm">%s</div><div class="eyes">%s</div><div class="tg">%s</div>%s%s%s</div>') % (
         e(r["name"] + " " + " ".join(r["traits"])), r["cost"] or "", r.get("pos") or "",
         COST_COLORS.get(r["cost"], "#666"), e(r["icon"]), e(r["name"]),
-        r["cost"] or "?", e(r["name"]), tags, stat, build_html(meta, r["top2"], "二"), build_html(meta, r["top3"], "三"))
+        r["cost"] or "?", e(r["name"]), eyes(r.get("eye") or []), tags, stat, build_html(meta, r["top2"], "二"), build_html(meta, r["top3"], "三"))
 
 def matrix(meta, roster, key, order, us, total, sid, title):
     g = defaultdict(lambda: {"front": [], "mid": [], "back": []})
@@ -68,7 +72,7 @@ def matrix(meta, roster, key, order, us, total, sid, title):
         sub = ('<small>%s</small>' % e("、".join(solo))) if n == "单一英雄种族" else ""
         rows.append(('<div class="trow"><div class="tn">%s<small>%d 名英雄</small>' + sub + '</div>%s</div>') % (
             e(n), len({r["id"] for p in g[n].values() for r in p}), "".join(cols)))
-    return '<section id="%s"><h2>%s</h2><div class="legend">前排 / 中排 / 后排 · 均名颜色：<span class="good">≤3.8 强</span> <span class="bad">≥4.5 弱</span> · 二/三件装为出场最多组合（胜率%%）</div>%s</section>' % (sid, title, "".join(rows))
+    return '<section id="%s"><h2>%s</h2><div class="legend">前排 / 中排 / 后排 · 均名颜色：<span class="good">≤3.8 强</span> <span class="bad">≥4.5 弱</span> · 二/三件装为出场最多组合（胜率%%） · <b class="eye ey3">阵眼—三星</b> 3★比2★吃鸡率≥+6pp（3★样本≥2000） <b class="eye eyi">阵眼—装备</b> 3件装比0件吃鸡率≥+5pp（样本≥3000）</div>%s</section>' % (sid, title, "".join(rows))
 
 def main():
     ap = argparse.ArgumentParser()
@@ -113,10 +117,21 @@ def main():
         seen.add(k); top.append(c)
         if len(top) == 6: break
     def U(i): return allmap.get(i) or {"name": i.replace("DA_", ""), "icon": "", "cost": None}
+    rid0 = {r["id"]: r for r in roster}
+    def cface(i):
+        t = (rid0.get(i) or {}).get("eye") or []
+        mk = "".join('<b class="eb %s">%s</b>' % (EYE_LBL[k][0], "3★" if k == "star" else "装") for k, _ in t)
+        return '<span class="cf">%s%s</span>' % (face(U(i)), mk)
+    def ceyes(c):
+        out = []
+        for i in c["units"]:
+            for k, d in (rid0.get(i) or {}).get("eye") or []:
+                out.append('<b class="eye %s" title="%s">%s · %s</b>' % (EYE_LBL[k][0], EYE_LBL[k][2] % d, e(U(i)["name"]), EYE_LBL[k][1]))
+        return '<div class="eyes">%s</div>' % ("".join(out) or '<span class="hint">无明显阵眼</span>')
     comp_html = "".join(
-        '<div class="cc"><div class="row">%s</div><div class="kv"><span class="%s">均名 <b>%.2f</b></span><span>前四 <b>%.0f%%</b></span><span>吃鸡 <b>%.0f%%</b></span><span>样本 <b>%d</b></span></div><div class="sub">%s</div></div>' % (
-            "".join(face(U(i)) for i in c["units"]), pcls(c["place"]), c["place"], c["top4"] / c["count"] * 100,
-            c["win"] / c["count"] * 100, c["count"], e("、".join(U(i)["name"] for i in c["units"]))) for c in top)
+        '<div class="cc"><div class="row">%s</div><div class="kv"><span class="%s">均名 <b>%.2f</b></span><span>前四 <b>%.0f%%</b></span><span>吃鸡 <b>%.0f%%</b></span><span>样本 <b>%d</b></span></div>%s<div class="sub">%s</div></div>' % (
+            "".join(cface(i) for i in c["units"]), pcls(c["place"]), c["place"], c["top4"] / c["count"] * 100,
+            c["win"] / c["count"] * 100, c["count"], ceyes(c), e("、".join(U(i)["name"] for i in c["units"]))) for c in top)
     rid = {r["id"]: r for r in roster}
     def ulist(items, fmt):
         return "".join('<li>%s<span class="ln">%s</span><span class="lv">%s</span></li>' % (face(r, "sm"), e(r["name"]), fmt(s)) for r, s in items)
@@ -215,6 +230,9 @@ section{margin:36px 0}h2{font-size:22px;border-left:4px solid var(--ac);padding-
 .ch{width:124px;background:var(--bg);border:1px solid var(--bd);border-top:3px solid var(--c);border-radius:10px;padding:6px;font-size:11px}
 .ph{position:relative}.ph img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;display:block}
 .ph em{position:absolute;top:4px;left:4px;background:var(--c);color:#000;font-style:normal;font-weight:800;border-radius:4px;padding:0 5px}
+.eyes{display:flex;flex-wrap:wrap;gap:3px;margin:3px 0}.eye{font-size:10px;font-weight:700;padding:1px 5px;border-radius:999px;border:1px solid;white-space:nowrap}
+.ey3{color:#ffd54a;border-color:#ffd54a;background:rgba(255,213,74,.12)}.eyi{color:#ff7a59;border-color:#ff7a59;background:rgba(255,122,89,.12)}
+.cf{position:relative;display:inline-block;margin-right:2px}.eb{position:absolute;bottom:-4px;font-size:8px;line-height:1;padding:1px 2px;border-radius:3px;border:1px solid;background:#111}.eb.ey3{left:-2px}.eb.eyi{right:-2px}
 .nm{font-weight:700;font-size:13px;margin-top:4px}.tg i{font-style:normal;display:inline-block;background:var(--pn2);color:var(--mu);border-radius:4px;padding:0 4px;margin:2px 2px 0 0}
 .st{color:var(--mu);margin:4px 0}.st span{font-weight:700}
 .bd{display:flex;align-items:center;gap:2px;margin-top:3px}.bd b{color:var(--ac);width:14px}.bd img{width:22px;height:22px;border-radius:3px}.bd span{margin-left:auto;color:var(--tx)}.bd.none{color:var(--mu)}

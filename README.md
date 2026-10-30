@@ -70,3 +70,11 @@ git add *.html && git commit -m "refresh data" && git push
 ## 致谢
 
 数据与图标来自 tactics.tools 与 Community Dragon。本项目与 Riot Games 无关；《云顶之弈》及相关素材版权归 Riot Games 所有。
+
+## 阵眼标记（主 C）
+
+职业站位 / 种族站位的英雄卡、首页推荐阵容里会标出「阵眼」，数据来自 tactics.tools 每个英雄页的 `starLevelData` 与 `itemCountData`（吃鸡率 = 第一名比例）：
+
+- <b>阵眼—三星</b>（黄）：3★ 吃鸡率 − 2★ 吃鸡率 ≥ **+6pp**，且 3★ 样本 ≥ 2000（过滤 4/5 费偶然三星）
+- <b>阵眼—装备</b>（橙）：满 3 件装吃鸡率 − 0 件装 ≥ **+5pp**，且 3 件装样本 ≥ 3000
+- 基础拉克丝（未选形态）排除；一个英雄可同时有两个标签。阈值在 `generate_tft_table.py` 的 `EYE_*` 常量里。

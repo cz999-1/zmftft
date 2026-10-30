@@ -9,6 +9,7 @@ Live data: tactics.tools + Community Dragon (zh_CN). Stdlib only.
 from __future__ import annotations
 
 import argparse
+import time
 import concurrent.futures
 import html as htmlmod
 import json
@@ -118,12 +119,19 @@ def infer_pos(name, classes):
     return "mid"
 
 def load_unit_builds(unit_ids, workers=12):
-    def one(uid):
+    def one(uid, tries=4):
         url = TACTICS + "/zh/units/" + uid.lower()
+        for t in range(tries - 1):
+            try:
+                pp = fetch_next_data(url)["props"]["pageProps"]
+                break
+            except Exception:
+                time.sleep(1 + t)
         try:
             pp = fetch_next_data(url)["props"]["pageProps"]
             ud = pp.get("unitData") or {}
-            return uid, {"itemPairs": ud.get("itemPairs") or [], "itemTrios": ud.get("itemTrios") or []}, None
+            return uid, {"itemPairs": ud.get("itemPairs") or [], "itemTrios": ud.get("itemTrios") or [],
+                         "starLevelData": ud.get("starLevelData") or [], "itemCountData": ud.get("itemCountData") or []}, None
         except Exception as e:
             return uid, None, str(e)
     out, errs = {}, []
@@ -144,6 +152,29 @@ def best_trait_perf(traits_stats, tid_prefix, min_count=150):
             if best is None or v["place"] < best["place"]:
                 best = {"tier": k.split("__")[-1], **v}
     return best
+
+# ── 阵眼 (carry) tags, data-driven from tactics.tools unit pages ──
+# unitData.starLevelData: per-star stats; unitData.itemCountData: stats by # of finished items held.
+# winrate = tactics.tools "won" (% games 1st place).
+# 阵眼—三星: won(3★) − won(2★) ≥ EYE_STAR_PP  AND  3★ sample ≥ EYE_STAR_MIN
+#   (min sample filters 4/5-cost 3★ that are rare/luck-driven, keeps units comps actually reroll for)
+# 阵眼—装备: won(3 items) − won(0 items) ≥ EYE_ITEM_PP  AND  3-item sample ≥ EYE_ITEM_MIN
+# Base Lux (DA_Lux18_Base) excluded — it's a placeholder before picking a Lux form.
+EYE_STAR_PP, EYE_STAR_MIN = 6.0, 2000
+EYE_ITEM_PP, EYE_ITEM_MIN = 5.0, 3000
+EYE_EXCLUDE = {"DA_Lux18_Base"}
+
+def carry_tags(cid, builds):
+    if cid in EYE_EXCLUDE or not builds:
+        return []
+    s = {d.get("id"): d for d in builds.get("starLevelData") or []}
+    c = {d.get("id"): d for d in builds.get("itemCountData") or []}
+    tags = []
+    if 3 in s and 2 in s and s[3].get("count", 0) >= EYE_STAR_MIN and s[3]["won"] - s[2]["won"] >= EYE_STAR_PP:
+        tags.append(("star", round(s[3]["won"] - s[2]["won"], 1)))
+    if 3 in c and 0 in c and c[3].get("count", 0) >= EYE_ITEM_MIN and c[3]["won"] - c[0]["won"] >= EYE_ITEM_PP:
+        tags.append(("item", round(c[3]["won"] - c[0]["won"], 1)))
+    return tags
 
 def build_roster(champs_zh, unit_builds, costs):
     roster = []
@@ -172,6 +203,7 @@ def build_roster(champs_zh, unit_builds, costs):
             "top2": pairs[0] if pairs else None,
             "top3": trios[0] if trios else None,
             "assassin": assassin,
+            "eye": carry_tags(cid, builds),
         })
     return roster
 
