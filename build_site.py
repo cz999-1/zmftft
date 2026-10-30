@@ -35,9 +35,10 @@ def card(meta, r, us, total):
         stat = '<div class="st"><span class="%s">均名%.2f</span> · 前四%.0f%% · 选率%.1f%%</div>' % (
             pcls(s["place"]), s["place"], s["top4"], s["count"] / total * 100)
     tags = "".join("<i>%s</i>" % e(t) for t in r["traits"])
-    return ('<div class="ch" data-k="%s" style="--c:%s"><div class="ph"><img src="%s" alt="%s" loading="lazy" onerror="this.style.opacity=.2">'
+    return ('<div class="ch" data-k="%s" data-cost="%s" data-pos="%s" style="--c:%s"><div class="ph"><img src="%s" alt="%s" loading="lazy" onerror="this.style.opacity=.2">'
             '<em>%s</em></div><div class="nm">%s</div><div class="tg">%s</div>%s%s%s</div>') % (
-        e(r["name"] + " " + " ".join(r["traits"])), COST_COLORS.get(r["cost"], "#666"), e(r["icon"]), e(r["name"]),
+        e(r["name"] + " " + " ".join(r["traits"])), r["cost"] or "", r.get("pos") or "",
+        COST_COLORS.get(r["cost"], "#666"), e(r["icon"]), e(r["name"]),
         r["cost"] or "?", e(r["name"]), tags, stat, build_html(meta, r["top2"], "二"), build_html(meta, r["top3"], "三"))
 
 def matrix(meta, roster, key, order, us, total, sid, title):
@@ -108,7 +109,10 @@ def main():
     rid = {r["id"]: r for r in roster}
     def ulist(items, fmt):
         return "".join('<li>%s<span class="ln">%s</span><span class="lv">%s</span></li>' % (face(r, "sm"), e(r["name"]), fmt(s)) for r, s in items)
-    hid = [(rid[k], s) for k, s in us.items() if k in rid and s["count"] >= 800 and s["count"] / total < 0.04]
+    def is_lux(r):
+        return r["name"] == "拉克丝" or r["name"].startswith("拉克丝")
+    hid = [(rid[k], s) for k, s in us.items()
+           if k in rid and s["count"] >= 800 and s["count"] / total < 0.04 and not is_lux(rid[k])]
     hid = sorted(hid, key=lambda x: x[1]["place"])[:8]
     star = [(rid[k], s) for k, s in us.items() if k in rid and s.get("starCount", 0) >= 80]
     star = sorted(star, key=lambda x: x[1]["place"] - x[1]["starPlace"], reverse=True)[:8]
@@ -144,6 +148,11 @@ nav{position:sticky;top:0;z-index:9;background:rgba(14,17,22,.92);backdrop-filte
 nav .wrap{display:flex;gap:16px;align-items:center;height:56px}nav .lg{font-weight:800;color:var(--ac);white-space:nowrap}
 nav a{color:var(--mu);text-decoration:none;white-space:nowrap}nav a:hover{color:var(--tx)}
 nav input{margin-left:auto;background:var(--pn2);border:1px solid var(--bd);color:var(--tx);border-radius:8px;padding:7px 12px;width:220px}
+.filters{display:flex;flex-wrap:wrap;gap:12px 20px;margin:16px 0 4px;padding:12px;background:var(--pn);border:1px solid var(--bd);border-radius:var(--r)}
+.fg{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.fl{color:var(--mu);font-size:12px;margin-right:4px}
+.fb{background:var(--pn2);border:1px solid var(--bd);color:var(--mu);border-radius:99px;padding:4px 12px;cursor:pointer;font-size:12px}
+.fb:hover{color:var(--tx)}.fb.on{background:var(--ac);border-color:var(--ac);color:#111;font-weight:700}
+
 header{padding:40px 0 10px}header h1{margin:0;font-size:32px}header p{color:var(--mu);margin:6px 0}
 .pill{display:inline-block;background:var(--pn2);border:1px solid var(--bd);border-radius:99px;padding:2px 10px;margin-right:6px;font-size:12px}
 section{margin:36px 0}h2{font-size:22px;border-left:4px solid var(--ac);padding-left:10px;margin:0 0 16px}h3{font-size:16px;margin:18px 0 10px}h3 small,.hint{color:var(--mu);font-weight:400;font-size:12px;margin:0 0 8px}
@@ -169,17 +178,64 @@ section{margin:36px 0}h2{font-size:22px;border-left:4px solid var(--ac);padding-
 .verdict img{max-width:40px}
 footer{color:var(--mu);border-top:1px solid var(--bd);padding:24px 0 60px;font-size:12px}code{background:var(--pn2);padding:1px 6px;border-radius:4px}
 .hide{display:none!important}
-@media(max-width:800px){nav .wrap{flex-wrap:wrap;height:auto;padding:8px 12px}nav input{width:100%;margin:0}.trow{grid-template-columns:1fr}.comps{grid-template-columns:1fr}}
+@media(max-width:800px){nav .wrap{flex-wrap:wrap;height:auto;padding:8px 12px}nav input{width:100%;margin:0}.trow{grid-template-columns:1fr}.comps{grid-template-columns:1fr}.filters{padding:10px}}
 </style></head><body>
 <nav><div class="wrap"><span class="lg">zmftft</span><a href="#ins">洞察</a><a href="#cls">职业</a><a href="#ori">种族</a><a href="#ver">结论</a><input id="q" placeholder="搜索英雄 / 羁绊…"></div></nav>
 <div class="wrap"><header><h1>云顶攻略台 · zmftft</h1><p><span class="pill">Set 18 · patch {{PATCH}}</span><span class="pill">{{N}} 场样本</span><span class="pill">更新 {{DATE}}</span></p>
-<p>数据来源 <a href="https://tactics.tools/zh/units" style="color:var(--ac)">tactics.tools</a> · 图标 Community Dragon</p></header>
+<p>数据来源 <a href="https://tactics.tools/zh/units" style="color:var(--ac)">tactics.tools</a> · 图标 Community Dragon</p>
+<div class="filters" id="filters">
+  <div class="fg"><span class="fl">费用</span>
+    <button type="button" class="fb on" data-f="cost" data-v="">全部</button>
+    <button type="button" class="fb" data-f="cost" data-v="1">1</button>
+    <button type="button" class="fb" data-f="cost" data-v="2">2</button>
+    <button type="button" class="fb" data-f="cost" data-v="3">3</button>
+    <button type="button" class="fb" data-f="cost" data-v="4">4</button>
+    <button type="button" class="fb" data-f="cost" data-v="5">5</button>
+  </div>
+  <div class="fg"><span class="fl">站位</span>
+    <button type="button" class="fb on" data-f="pos" data-v="">全部</button>
+    <button type="button" class="fb" data-f="pos" data-v="front">前排</button>
+    <button type="button" class="fb" data-f="pos" data-v="mid">中排</button>
+    <button type="button" class="fb" data-f="pos" data-v="back">后排</button>
+  </div>
+  <div class="fg"><span class="fl">区域</span>
+    <button type="button" class="fb on" data-f="sec" data-v="">全部</button>
+    <button type="button" class="fb" data-f="sec" data-v="cls">只看职业</button>
+    <button type="button" class="fb" data-f="sec" data-v="ori">只看种族</button>
+  </div>
+</div>
+</header>
 {{BODY}}
 <footer>新版本重新生成：<code>python3 build_site.py --no-cache</code> 然后 <code>git push</code>。非官方粉丝站，数据仅供参考。</footer></div>
 <script>
-var q=document.getElementById('q');q.addEventListener('input',function(){var v=q.value.trim();
-document.querySelectorAll('.ch').forEach(function(c){c.classList.toggle('hide',v&&c.dataset.k.indexOf(v)<0)});
-document.querySelectorAll('.trow').forEach(function(r){r.classList.toggle('hide',v&&!r.querySelector('.ch:not(.hide)')&&r.querySelector('.tn').textContent.indexOf(v)<0)});});
+(function(){
+  var state={q:'',cost:'',pos:'',sec:''};
+  var q=document.getElementById('q');
+  function apply(){
+    document.querySelectorAll('.ch').forEach(function(c){
+      var ok=true;
+      if(state.q && c.dataset.k.indexOf(state.q)<0) ok=false;
+      if(state.cost && String(c.dataset.cost)!==state.cost) ok=false;
+      if(state.pos && c.dataset.pos!==state.pos) ok=false;
+      c.classList.toggle('hide', !ok);
+    });
+    document.querySelectorAll('.trow').forEach(function(r){
+      var has=!!r.querySelector('.ch:not(.hide)');
+      var nameHit=!state.q || r.querySelector('.tn').textContent.indexOf(state.q)>=0;
+      r.classList.toggle('hide', !(has || (nameHit && !state.cost && !state.pos)));
+    });
+    document.getElementById('cls').classList.toggle('hide', state.sec==='ori');
+    document.getElementById('ori').classList.toggle('hide', state.sec==='cls');
+  }
+  q.addEventListener('input', function(){ state.q=q.value.trim(); apply(); });
+  document.getElementById('filters').addEventListener('click', function(ev){
+    var b=ev.target.closest('.fb'); if(!b) return;
+    var f=b.dataset.f, v=b.dataset.v;
+    state[f]=v;
+    b.parentNode.querySelectorAll('.fb').forEach(function(x){ x.classList.toggle('on', x===b); });
+    apply();
+  });
+})();
 </script></body></html>'''
 
 if __name__ == "__main__":
