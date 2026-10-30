@@ -62,7 +62,7 @@ def matrix(meta, roster, key, order, us, total, sid, title):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default="index.html")
+    ap.add_argument("--out", default=".", help="输出目录")
     ap.add_argument("--no-cache", action="store_true")
     a = ap.parse_args()
     print("fetch units…")
@@ -133,21 +133,54 @@ def main():
         ulist(star, lambda s: '<b class="good">+%.2f</b><small>%.2f→%.2f</small>' % (s["place"] - s["starPlace"], s["place"], s["starPlace"])),
         tr_html)
     verdict = verdict_section(roster, ts, "origin")
-    body = insights + matrix(meta, roster, "classes", CLASS_ORDER, us, total, "cls", "职业羁绊 × 站位") + \
-        matrix(meta, roster, "origins", ORIGIN_ORDER, us, total, "ori", "种族羁绊 × 站位") + \
-        '<section id="ver"><h2>站位结论（种族）</h2><div class="verdict">%s</div></section>' % verdict + craft.section()[0]
-    doc = TPL.replace("{{PATCH}}", e(patch)).replace("{{N}}", "%d" % total).replace("{{DATE}}", time.strftime("%Y-%m-%d %H:%M")).replace("{{BODY}}", body).replace("{{CRAFTCSS}}", craft.CSS)
-    Path(a.out).write_text(doc, encoding="utf-8")
-    print("done →", a.out, len(doc), "bytes;", len(roster), "champions;", len(top), "comps")
+    cls_html = matrix(meta, roster, "classes", CLASS_ORDER, us, total, "cls", "职业羁绊 × 站位")
+    ori_html = matrix(meta, roster, "origins", ORIGIN_ORDER, us, total, "ori", "种族羁绊 × 站位")
+    ver_html = '<section id="ver"><h2>站位结论（种族）</h2><div class="verdict">%s</div></section>' % verdict
+    links = '<section id="go"><h2>去哪看</h2><div class="grid three">' + "".join(
+        '<a class="box golink" href="%s"><h3>%s</h3><p class="hint">%s</p></a>' % x for x in PAGES[1:]) + '</div></section>'
+    bodies = {"index.html": insights + links + "<script>var H={'#craft':'craft.html','#cls':'class.html','#ori':'origin.html','#ver':'origin.html#ver'};if(H[location.hash])location.replace(H[location.hash]);</script>", "class.html": cls_html, "origin.html": ori_html + ver_html, "craft.html": craft.section()[0]}
+    out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
+    for fn, title, _ in PAGES:
+        nav = "".join('<a href="%s"%s>%s</a>' % (f, ' class="cur"' if f == fn else "", t) for f, t, _ in PAGES)
+        filt = FILTERS if fn in ("class.html", "origin.html") else ""
+        search = SEARCH if filt else ""
+        doc = TPL.replace("{{PATCH}}", e(patch)).replace("{{N}}", "%d" % total).replace("{{DATE}}", time.strftime("%Y-%m-%d %H:%M")) \
+            .replace("{{CRAFTCSS}}", craft.CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", title).replace("{{FILTERS}}", filt).replace("{{SEARCH}}", search).replace("{{BODY}}", bodies[fn])
+        (out / fn).write_text(doc, encoding="utf-8")
+        print("done →", out / fn, len(doc), "bytes")
+    print(len(roster), "champions;", len(top), "comps")
+
+PAGES = [("index.html", "首页 · 洞察", "最强阵容、冷门高胜率、三星价值、羁绊强度"),
+         ("class.html", "职业站位", "各职业羁绊的前/中/后排英雄与推荐出装"),
+         ("origin.html", "种族站位", "各种族羁绊的站位矩阵 + 站位结论"),
+         ("craft.html", "装备合成", "Set 18 散件合成表、纹章与冠冕")]
+FILTERS = r'''<div class="filters" id="filters">
+  <div class="fg"><span class="fl">费用</span>
+    <button type="button" class="fb on" data-f="cost" data-v="">全部</button>
+    <button type="button" class="fb" data-f="cost" data-v="1">1</button>
+    <button type="button" class="fb" data-f="cost" data-v="2">2</button>
+    <button type="button" class="fb" data-f="cost" data-v="3">3</button>
+    <button type="button" class="fb" data-f="cost" data-v="4">4</button>
+    <button type="button" class="fb" data-f="cost" data-v="5">5</button>
+  </div>
+  <div class="fg"><span class="fl">站位</span>
+    <button type="button" class="fb on" data-f="pos" data-v="">全部</button>
+    <button type="button" class="fb" data-f="pos" data-v="front">前排</button>
+    <button type="button" class="fb" data-f="pos" data-v="mid">中排</button>
+    <button type="button" class="fb" data-f="pos" data-v="back">后排</button>
+  </div>
+</div>
+'''
+SEARCH = '<input id="q" placeholder="搜索英雄 / 羁绊…">'
 
 TPL = r'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>云顶攻略台 · zmftft</title><style>
+<title>{{TITLE}} · 云顶攻略台 zmftft</title><style>
 :root{--bg:#0e1116;--pn:#161b22;--pn2:#1c232d;--bd:#2a323d;--tx:#e6edf3;--mu:#8b98a8;--ac:#f0b429;--good:#3fb950;--bad:#e5737a;--r:12px}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 -apple-system,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif}
 .wrap{max-width:1200px;margin:0 auto;padding:0 20px}
 nav{position:sticky;top:0;z-index:9;background:rgba(14,17,22,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--bd)}
 nav .wrap{display:flex;gap:16px;align-items:center;height:56px}nav .lg{font-weight:800;color:var(--ac);white-space:nowrap}
-nav a{color:var(--mu);text-decoration:none;white-space:nowrap}nav a:hover{color:var(--tx)}
+nav a{color:var(--mu);text-decoration:none;white-space:nowrap}nav a:hover,nav a.cur{color:var(--tx)}nav a.cur{border-bottom:2px solid var(--ac)}a.golink{text-decoration:none;color:var(--tx)}a.golink:hover{border-color:var(--ac)}
 nav input{margin-left:auto;background:var(--pn2);border:1px solid var(--bd);color:var(--tx);border-radius:8px;padding:7px 12px;width:220px}
 .filters{display:flex;flex-wrap:wrap;gap:12px 20px;margin:16px 0 4px;padding:12px;background:var(--pn);border:1px solid var(--bd);border-radius:var(--r)}
 .fg{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.fl{color:var(--mu);font-size:12px;margin-right:4px}
@@ -182,38 +215,17 @@ footer{color:var(--mu);border-top:1px solid var(--bd);padding:24px 0 60px;font-s
 {{CRAFTCSS}}
 @media(max-width:800px){nav .wrap{flex-wrap:wrap;height:auto;padding:8px 12px}nav input{width:100%;margin:0}.trow{grid-template-columns:1fr}.comps{grid-template-columns:1fr}.filters{padding:10px}}
 </style></head><body>
-<nav><div class="wrap"><span class="lg">zmftft</span><a href="#ins">洞察</a><a href="#cls">职业</a><a href="#ori">种族</a><a href="#ver">结论</a><a href="#craft">合成</a><input id="q" placeholder="搜索英雄 / 羁绊…"></div></nav>
-<div class="wrap"><header><h1>云顶攻略台 · zmftft</h1><p><span class="pill">Set 18 · patch {{PATCH}}</span><span class="pill">{{N}} 场样本</span><span class="pill">更新 {{DATE}}</span></p>
+<nav><div class="wrap"><a class="lg" href="index.html">zmftft</a>{{NAV}}{{SEARCH}}</div></nav>
+<div class="wrap"><header><h1>{{TITLE}}</h1><p><span class="pill">Set 18 · patch {{PATCH}}</span><span class="pill">{{N}} 场样本</span><span class="pill">更新 {{DATE}}</span></p>
 <p>数据来源 <a href="https://tactics.tools/zh/units" style="color:var(--ac)">tactics.tools</a> · 图标 Community Dragon</p>
-<div class="filters" id="filters">
-  <div class="fg"><span class="fl">费用</span>
-    <button type="button" class="fb on" data-f="cost" data-v="">全部</button>
-    <button type="button" class="fb" data-f="cost" data-v="1">1</button>
-    <button type="button" class="fb" data-f="cost" data-v="2">2</button>
-    <button type="button" class="fb" data-f="cost" data-v="3">3</button>
-    <button type="button" class="fb" data-f="cost" data-v="4">4</button>
-    <button type="button" class="fb" data-f="cost" data-v="5">5</button>
-  </div>
-  <div class="fg"><span class="fl">站位</span>
-    <button type="button" class="fb on" data-f="pos" data-v="">全部</button>
-    <button type="button" class="fb" data-f="pos" data-v="front">前排</button>
-    <button type="button" class="fb" data-f="pos" data-v="mid">中排</button>
-    <button type="button" class="fb" data-f="pos" data-v="back">后排</button>
-  </div>
-  <div class="fg"><span class="fl">区域</span>
-    <button type="button" class="fb on" data-f="sec" data-v="">全部</button>
-    <button type="button" class="fb" data-f="sec" data-v="cls">只看职业</button>
-    <button type="button" class="fb" data-f="sec" data-v="ori">只看种族</button>
-    <button type="button" class="fb" data-f="sec" data-v="craft">只看合成</button>
-  </div>
-</div>
+{{FILTERS}}
 </header>
 {{BODY}}
-<footer>新版本重新生成：<code>python3 build_site.py --no-cache</code> 然后 <code>git push</code>。非官方粉丝站，数据仅供参考。</footer></div>
+<footer>新版本重新生成：<code>python3 build_site.py --no-cache</code>（生成 4 个页面） 然后 <code>git push</code>。非官方粉丝站，数据仅供参考。</footer></div>
 <script>
 (function(){
   var state={q:'',cost:'',pos:'',sec:''};
-  var q=document.getElementById('q');
+  var q=document.getElementById('q'); if(!q) return;
   function apply(){
     document.querySelectorAll('.ch').forEach(function(c){
       var ok=true;
@@ -227,11 +239,6 @@ footer{color:var(--mu);border-top:1px solid var(--bd);padding:24px 0 60px;font-s
       var nameHit=!state.q || r.querySelector('.tn').textContent.indexOf(state.q)>=0;
       r.classList.toggle('hide', !(has || (nameHit && !state.cost && !state.pos)));
     });
-    document.getElementById('cls').classList.toggle('hide', state.sec==='ori');
-    document.getElementById('ori').classList.toggle('hide', state.sec==='cls'||state.sec==='craft');
-    document.getElementById('cls').classList.toggle('hide', state.sec==='ori'||state.sec==='craft');
-    ['ins','ver'].forEach(function(i){var el=document.getElementById(i); if(el) el.classList.toggle('hide', state.sec==='craft');});
-    document.getElementById('craft').classList.toggle('hide', !!state.sec && state.sec!=='craft');
   }
   q.addEventListener('input', function(){ state.q=q.value.trim(); apply(); });
   document.getElementById('filters').addEventListener('click', function(ev){

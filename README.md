@@ -31,7 +31,7 @@ zmftft 的目标很简单：**用最新数据自动生成一张中文、当前�
 
 ```
 tactics.tools（英雄出装 / 羁绊表现统计）  ┐
-Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python 脚本 → index.html → GitHub Pages
+Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python 脚本 → 4 个 HTML 页面 → GitHub Pages
 ```
 
 - **数据源**
@@ -40,15 +40,15 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
 - **生成脚本**（只用 Python 标准库，无第三方依赖）
   - `generate_tft_table.py`：抓取数据、映射中文名、推断站位、计算推荐出装与站位结论
   - `craft.py`：从 Community Dragon 读取当前赛季配方，生成装备合成矩阵、纹章、冠冕
-  - `build_site.py`：把以上内容组装成单页 `index.html`（内联 CSS/JS）
-- **部署**：`index.html` 推到 `main`，由 GitHub Pages 直接托管
+  - `build_site.py`：把以上内容组装成多页站点（共享顶部导航，内联 CSS/JS）：`index.html` 首页·洞察、`class.html` 职业站位、`origin.html` 种族站位+站位结论、`craft.html` 装备合成；页面间用相对链接互跳，旧的 `#craft` 等锚点会自动跳到新页面
+- **部署**：4 个 `*.html` 推到 `main`，由 GitHub Pages 直接托管
 
 ### 刷新数据
 
 ```bash
-python3 build_site.py            # 生成 index.html（会缓存出装数据到 /tmp）
+python3 build_site.py            # 生成 index/class/origin/craft.html（会缓存出装数据到 /tmp）
 python3 build_site.py --no-cache # 强制重新抓取
-git add index.html && git commit -m "refresh data" && git push
+git add *.html && git commit -m "refresh data" && git push
 ```
 
 新赛季上线后，Community Dragon 与 tactics.tools 更新数据，重跑即可；赛季编号相关的过滤在脚本中自动检测/可调整。
