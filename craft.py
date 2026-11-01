@@ -34,7 +34,7 @@ def blurb(it):
 def fetch():
     return json.loads(urllib.request.urlopen(urllib.request.Request(CD_JSON, headers={"User-Agent": "zmftft"}), timeout=60).read())
 
-def build(d, set_no=18):
+def build(d, set_no):
     im = {i["apiName"]: i for i in d["items"]}
     S = next(s for s in d["setData"] if s.get("number") == set_no and s.get("mutator") == "TFTSet%d" % set_no)
     names = set(S["items"])
@@ -54,7 +54,7 @@ def build(d, set_no=18):
     comps = [(c, im["TFT_Item_" + c]["name"], icon(im["TFT_Item_" + c]["icon"])) for c in COMPS]
     return comps, table
 
-def section(comps, table, set_no=18):
+def section(comps, table, set_no):
     head ='<th></th>' + "".join('<th><img src="%s" alt=""><span>%s</span></th>' % (i, e(n)) for _, n, i in comps)
     rows = []
     for a, an, ai in comps:
@@ -84,7 +84,8 @@ CSS = """.cw{overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r);b
 .emb li>img{width:32px;height:32px}.emb .rc img{width:18px;height:18px;opacity:.8}.emb small{color:var(--mu);margin-left:auto}"""
 
 if __name__ == "__main__":
-    s, n, t = section(*build(fetch()))
+    d = fetch(); set_no = max(int(k) for k in d["sets"])  # newest set in the file (the site build uses the detected set)
+    s, n, t = section(*build(d, set_no), set_no)
     print(n, len(t))
     for k in [("BFSword","BFSword"),("TearOfTheGoddess","TearOfTheGoddess"),("Spatula","Spatula"),("BFSword","Spatula"),("FryingPan","NegatronCloak")]:
         v=t[tuple(sorted(k))];print(k,v["name"],v["desc"])

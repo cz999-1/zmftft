@@ -75,28 +75,19 @@ def cdragon_asset_url(square_icon_path):
         rel = square_icon_path.split("/assets/", 1)[-1]
     return CDRAGON + "/default/assets/" + rel.lower()
 
+ITEM_PREFIX = re.compile(r"(?:TFT\d*|DA)_Item_")  # TFT_Item_, TFT5_Item_ … TFT18_Item_, a later set's, DA_Item_
+
+def item_keys(nid):
+    """Lookup keys one item registers: its id, and the id without the set's item prefix (bare and DA_)."""
+    m = ITEM_PREFIX.match(nid)
+    return [nid] + ([nid[m.end():], "DA_" + nid[m.end():]] if m else [])
+
 def build_item_meta(items_zh):
     meta = {}
-    def add(key, name, icon):
-        if key and key not in meta:
-            meta[key] = {"name": name, "icon": icon}
-    prefixes = [
-        "TFT_Item_", "TFT5_Item_", "TFT7_Item_", "TFT9_Item_", "TFT11_Item_",
-        "TFT14_Item_", "TFT15_Item_", "TFT16_Item_", "TFT17_Item_", "TFT18_Item_", "DA_Item_",
-    ]
     for it in items_zh:
-        nid = it.get("nameId") or ""
-        name = it.get("name") or ""
-        icon = it.get("squareIconPath") or ""
-        add(nid, name, icon)
-        for p in prefixes:
-            if nid.startswith(p):
-                short = nid[len(p):]
-                add(short, name, icon)
-                add("DA_" + short, name, icon)
-                break
-        if nid.startswith("DA_"):
-            add(nid, name, icon)
+        for key in item_keys(it.get("nameId") or ""):
+            if key and key not in meta:
+                meta[key] = {"name": it.get("name") or "", "icon": it.get("squareIconPath") or ""}
     return meta
 
 def item_cn(meta, iid):

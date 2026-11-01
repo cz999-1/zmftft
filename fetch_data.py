@@ -7,7 +7,7 @@ import argparse, json, re, time
 from datetime import datetime, timezone
 from pathlib import Path
 from generate_tft_table import (fetch, fetch_json, fetch_next_data, load_unit_builds, detect_set_filter, set_number,
-    official_units, official_traits, TACTICS, CDRAGON)
+    official_units, official_traits, item_keys, TACTICS, CDRAGON)
 import craft, checks
 
 ROOT = Path(__file__).resolve().parent
@@ -54,17 +54,6 @@ def collect_raw(refresh=False, offline=False):
     return raw
 
 
-def item_keys(nid):
-    """generate_tft_table.build_item_meta 会为一个装备登记的全部查找键。"""
-    keys = {nid}
-    for p in ("TFT_Item_", "TFT5_Item_", "TFT7_Item_", "TFT9_Item_", "TFT11_Item_",
-              "TFT14_Item_", "TFT15_Item_", "TFT16_Item_", "TFT17_Item_", "TFT18_Item_", "DA_Item_"):
-        if nid.startswith(p):
-            keys |= {nid[len(p):], "DA_" + nid[len(p):]}
-            break
-    return keys
-
-
 def make_snapshot(raw):
     """从原始响应取出页面用到的字段。"""
     pp = raw["units"]["pageProps"]; sd = pp["statsData"]; ap = pp.get("aperture") or {}
@@ -92,10 +81,10 @@ def make_snapshot(raw):
         "official": {"units": official_units(raw["cd_tft"], set_no), "traits": official_traits(raw["cd_tft"], set_no)},
         "unit_stats": {u: {k: s.get(k) for k in ("count", "place", "top4")} for u, s in sd["units"].items()},
         "champions": [{"character_record": {k: (c.get("character_record") or {}).get(k) for k in ("character_id", "display_name", "squareIconPath", "traits")}} for c in champs],
-        "items": [{k: it.get(k) for k in ("nameId", "name", "squareIconPath")} for it in raw["items"] if item_keys(it.get("nameId") or "") & used],
+        "items": [{k: it.get(k) for k in ("nameId", "name", "squareIconPath")} for it in raw["items"] if set(item_keys(it.get("nameId") or "")) & used],
         "unit_builds": builds,
         "comps": comps,
-        "craft": {"components": components, "recipes": [dict(v, pair=list(k)) for k, v in table.items()]},
+        "craft": {"components": components, "recipes": [dict(v, pair=list(k)) for k, v in sorted(table.items())]},  # sorted: craft.build loops over a set
     }
 
 

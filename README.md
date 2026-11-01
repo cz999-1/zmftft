@@ -102,6 +102,23 @@ git add *.html synergy data && git commit -m "refresh data" && git push
 
 数据与图标来自 tactics.tools 与 Community Dragon。本项目与 Riot Games 无关；《云顶之弈》及相关素材版权归 Riot Games 所有。
 
+## Set 迁移清单（新赛季上线时）
+
+代码里已经没有写死的赛季号：赛季从 Community Dragon 的图标路径识别，再和 tactics.tools 页面标题核对；装备 id 前缀按 `TFT<数字>_Item_` 通配。新赛季要做的：
+
+1. `python3 build_site.py --no-cache`：护栏会报“缺少 sets/set19.json”并停下，快照留在 `cache/failed_snapshot.json`。
+2. `python3 checks.py --skeleton cache/failed_snapshot.json`：生成 `sets/set19.json` 草稿，所有英雄站位是 `"?"`，所有羁绊在 `"untyped"` 里。
+3. 手工编辑 `sets/set19.json`：
+   - 把 `"untyped"` 里的羁绊分到 `"classes"`（职业）和 `"origins"`（种族），顺序就是页面上的行顺序，然后删掉 `"untyped"`；
+   - 每个英雄填 `front` / `mid` / `back`；
+   - 有多种形态、tactics.tools 分开统计的英雄（像 Set 18 的拉克丝），形态 id 放进 `"hide"`；基础形态要改名的放进 `"rename"`。
+4. 再跑 `python3 build_site.py`，直到护栏通过；再跑 `python3 -m unittest discover -s tests`。
+5. 护栏在这些情况也会停，需要改代码：
+   - 基础散件不是 10 个（`craft.py` 的 `COMPS`）；
+   - 英雄数、棋盘数等超出 `checks.py` 的 `BOUNDS`；
+   - tactics.tools 页面上的筛选文字（「排位模式 钻石以上 18.5c」）或标题（「Set 18」）换了格式（`fetch_data.py` 的 `units_page`）。
+6. 旧赛季的快照留在 `data/set18/` 存档；README 里 Set 18 的例子按需更新。
+
 ## 已下线的板块（2026-11-01）
 
 首页的「最强阵容」「冷门高胜率」「三星价值」「羁绊强度」、种族页的「站位结论」和英雄卡上的「阵眼—三星 / 阵眼—装备」标签已删除。

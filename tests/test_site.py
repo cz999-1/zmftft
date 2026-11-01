@@ -67,6 +67,18 @@ class Site(unittest.TestCase):
     def test_guard_catches_a_count_out_of_range(self):
         self.check_catches(lambda s, m: s["meta"].update(total=5), "total")
 
+    def test_new_set_skeleton_is_flagged_until_filled(self):
+        sk = json.loads(checks.dump_manual(checks.skeleton(self.snap)))
+        found = self.problems(self.snap, sk)
+        self.assertTrue(any("没有站位" in p for p in found), found)
+        self.assertTrue(any("标职业或种族" in p for p in found), found)
+        sk.update({k: self.manual[k] for k in ("hide", "rename", "classes", "origins", "positions")})
+        self.assertEqual(self.problems(self.snap, sk), [])
+
+    def test_manual_file_is_in_the_one_entry_per_line_format(self):
+        p = ROOT / "sets" / ("set%d.json" % self.snap["meta"]["set"])
+        self.assertEqual(checks.dump_manual(self.manual), p.read_text(encoding="utf-8").replace("\r\n", "\n"))
+
     def test_failed_guard_writes_no_snapshot(self):
         snap = copy.deepcopy(self.snap); snap["meta"]["tactics_set"] = None
         target = fetch_data.snapshot_path(snap); before = target.read_bytes() if target.exists() else None

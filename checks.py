@@ -1,9 +1,10 @@
 """构建护栏：快照和人工标注不通过就不生成页面、不存快照 (stdlib only).
-用法: python3 checks.py [data/set18/18.5c.json]   # 单独检查一个快照
+用法: python3 checks.py [data/set18/18.5c.json]             # 单独检查一个快照
+      python3 checks.py --skeleton cache/failed_snapshot.json  # 新赛季：生成 sets/set<N>.json 草稿
 build_site.py 每次构建前都会调用 check()。"""
 import json, sys
 from pathlib import Path
-from generate_tft_table import load_manual
+from generate_tft_table import load_manual, SETS
 
 # 合理范围（Set 18 的实际值见括号）：超出就说明数据源变了或抓取出错
 BOUNDS = {"roster": (40, 90),          # 矩阵里的英雄数（65）
@@ -83,7 +84,45 @@ def require(snap):
         raise SystemExit("构建护栏没通过，没有写快照和页面：\n- " + "\n- ".join(problems))
 
 
+NOTE = ("人工标注：羁绊类型（职业/种族）、行顺序和英雄站位不在官方数据里，由本站维护。列表顺序 = 页面上的行顺序。"
+        "名字只为方便阅读，页面用官方中文名；id 与名字对不上时构建会报错。")
+
+
+def skeleton(snap):
+    """新赛季的 sets/set<N>.json 草稿：站位都是 "?"，羁绊都在 "untyped"，等人工分到 classes / origins。"""
+    roster = sorted((c["character_record"] for c in snap["champions"]), key=lambda cr: cr["character_id"])
+    traits = sorted({(t["id"], t["name"]) for cr in roster for t in cr.get("traits") or []})
+    return {"set": snap["meta"]["set"], "note": NOTE, "hide": [], "hide_note": "", "rename": {},
+            "classes": [], "origins": [], "untyped": [list(t) for t in traits],
+            "positions": {cr["character_id"]: ["?", cr["display_name"]] for cr in roster}}
+
+
+def dump_manual(doc):
+    """一行一条，方便手工编辑。"""
+    J = lambda v: json.dumps(v, ensure_ascii=False)
+    out, keys = ["{"], list(doc)
+    for i, k in enumerate(keys):
+        v, end = doc[k], ("," if i < len(keys) - 1 else "")
+        if isinstance(v, (list, dict)) and v:
+            rows = list(v.items()) if isinstance(v, dict) else v
+            fmt = (lambda x: "%s: %s" % (J(x[0]), J(x[1]))) if isinstance(v, dict) else J
+            out += [" %s: %s" % (J(k), "{" if isinstance(v, dict) else "[")]
+            out += ["  %s%s" % (fmt(x), "," if j < len(rows) - 1 else "") for j, x in enumerate(rows)]
+            out += [" %s%s" % ("}" if isinstance(v, dict) else "]", end)]
+        else:
+            out.append(" %s: %s%s" % (J(k), J(v), end))
+    return "\n".join(out + ["}"]) + "\n"
+
+
 def main():
+    if sys.argv[1:2] == ["--skeleton"]:
+        snap = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+        p = SETS / ("set%d.json" % snap["meta"]["set"])
+        if p.exists():
+            raise SystemExit("%s 已存在，不覆盖" % p)
+        p.write_text(dump_manual(skeleton(snap)), encoding="utf-8", newline="\n")
+        print("草稿 →", p, "（填站位、把 untyped 里的羁绊分到 classes / origins，见 README 的 Set 迁移清单）")
+        return 0
     path = sys.argv[1] if len(sys.argv) > 1 else sorted(Path(__file__).resolve().parent.glob("data/set*/*.json"))[-1]
     problems = check(json.loads(Path(path).read_text(encoding="utf-8")))
     print("\n".join(problems) or "%s：通过" % path)

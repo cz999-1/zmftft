@@ -133,7 +133,7 @@ PAGES = [("index.html", "首页", "说明与各页入口"),
          ("class.html", "职业站位", "各职业羁绊的前/中/后排英雄与常用出装"),
          ("origin.html", "种族站位", "各种族羁绊的前/中/后排英雄与常用出装"),
          ("synergy.html", "种族搭配", "种族 × 种族 搭配矩阵（均名、选率），点格子看所有英雄组合"),
-         ("craft.html", "装备合成", "Set 18 散件合成表、纹章与冠冕")]
+         ("craft.html", "装备合成", "当前赛季散件合成表、纹章与冠冕")]
 FILTERS = r'''<div class="filters" id="filters">
   <div class="fg"><span class="fl">费用</span>
     <button type="button" class="fb on" data-f="cost" data-v="">全部</button>
