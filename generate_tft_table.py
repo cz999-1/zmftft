@@ -121,19 +121,17 @@ def infer_pos(name, classes):
 def load_unit_builds(unit_ids, workers=12):
     def one(uid, tries=4):
         url = TACTICS + "/zh/units/" + uid.lower()
-        for t in range(tries - 1):
+        err = None
+        for t in range(tries):  # one request per try; sleep only after a failure
             try:
-                pp = fetch_next_data(url)["props"]["pageProps"]
-                break
-            except Exception:
-                time.sleep(1 + t)
-        try:
-            pp = fetch_next_data(url)["props"]["pageProps"]
-            ud = pp.get("unitData") or {}
-            return uid, {"itemPairs": ud.get("itemPairs") or [], "itemTrios": ud.get("itemTrios") or [],
-                         "starLevelData": ud.get("starLevelData") or [], "itemCountData": ud.get("itemCountData") or []}, None
-        except Exception as e:
-            return uid, None, str(e)
+                ud = fetch_next_data(url)["props"]["pageProps"].get("unitData") or {}
+                return uid, {"itemPairs": ud.get("itemPairs") or [], "itemTrios": ud.get("itemTrios") or [],
+                             "starLevelData": ud.get("starLevelData") or [], "itemCountData": ud.get("itemCountData") or []}, None
+            except Exception as e:
+                err = e
+                if t < tries - 1:
+                    time.sleep(1 + t)
+        return uid, None, str(err)
     out, errs = {}, []
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
         for uid, data, err in ex.map(lambda u: one(u), unit_ids):

@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-"""云顶攻略台 · zmftft — 生成单页站点 index.html (stdlib only).
-用法: python3 build_site.py [--out index.html] [--no-cache]
+"""云顶攻略台 · zmftft — 生成站点页面 (stdlib only).
+用法: python3 build_site.py [--out .] [--no-cache] [--data data/<set>/<patch>.json]
+先抓取并存快照（fetch_data.py），页面只从快照渲染；--data 只渲染、不联网。
 依赖同目录 generate_tft_table.py 中的映射与工具函数。"""
-import argparse, json, os, time, html as H
+import argparse, time, html as H
 from collections import defaultdict
 from pathlib import Path
-from generate_tft_table import (fetch_json, fetch_next_data, TACTICS, CDRAGON, DEFAULT_COSTS, COST_COLORS,
-    CLASS_ORDER, ORIGIN_ORDER, ZH_TRAIT_TO_TID, build_item_meta, item_cn, item_icon, load_unit_builds,
-    best_trait_perf, build_roster, detect_set_filter, verdict_section, cdragon_asset_url, CLASS_SET)
+from generate_tft_table import (DEFAULT_COSTS, COST_COLORS, CLASS_ORDER, ORIGIN_ORDER, ZH_TRAIT_TO_TID, build_item_meta,
+    item_cn, item_icon, best_trait_perf, build_roster, verdict_section, cdragon_asset_url, CLASS_SET)
 
-import craft, synergy
-CACHE = "/tmp/unit_items.json"
+import craft, synergy, fetch_data
 e = lambda s: H.escape(str(s))
 
 def pcls(p):
@@ -75,47 +74,31 @@ def matrix(meta, roster, key, order, us, total, sid, title):
     return '<section id="%s"><h2>%s</h2><div class="legend">前排 / 中排 / 后排 · 均名颜色：<span class="good">≤3.8 强</span> <span class="bad">≥4.5 弱</span> · 二/三件装为出场最多组合（胜率%%） · <b class="eye ey3">阵眼—三星</b> 3★比2★吃鸡率≥+6pp（3★样本≥2000） <b class="eye eyi">阵眼—装备</b> 3件装比0件吃鸡率≥+5pp（样本≥3000）</div>%s</section>' % (sid, title, "".join(rows))
 
 def main():
-    try:  # optional: refresh Riot Data Dragon snapshot (no key needed); never blocks build
-        from data.riot import ddragon
-        snap = ddragon.snapshot()
-        print(f"[riot] Data Dragon {snap['version']} Set {snap['set']}: {len(snap['champions'])} champs")
-    except Exception as err:
-        print("[riot] Data Dragon skipped:", err)
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=".", help="输出目录")
-    ap.add_argument("--no-cache", action="store_true")
+    ap.add_argument("--no-cache", action="store_true", help="忽略 cache/raw/ 重新抓取")
+    ap.add_argument("--data", help="只用这个快照渲染、不联网，例如 data/set18/16212.json")
     a = ap.parse_args()
-    print("fetch units…")
-    pp = fetch_next_data(TACTICS + "/zh/units")["props"]["pageProps"]
-    sd = pp["statsData"]; us = sd["units"]; ts = sd.get("traits") or {}; total = sd["totalEntries"]
-    patch = ((pp.get("aperture") or {}).get("patch") or {}).get("_0", "?")
-    print("fetch cdragon…")
-    champs = fetch_json(CDRAGON + "/zh_cn/v1/tftchampions.json")
-    meta = build_item_meta(fetch_json(CDRAGON + "/zh_cn/v1/tftitems.json"))
-    mk = detect_set_filter(champs)
-    f = [c for c in champs if mk.lower() in ((c.get("character_record") or {}).get("squareIconPath") or "").lower()]
-    if len(f) >= 20: champs = f
+    if a.data:
+        path = Path(a.data)
+    else:
+        path = fetch_data.save(fetch_data.make_snapshot(fetch_data.collect_raw(a.no_cache)))
+        print("snapshot →", path)
+    render(fetch_data.load(path), Path(a.out))
+
+def render(snap, out):
+    """页面只读快照，不联网。"""
+    us = snap["unit_stats"]; ts = snap["trait_stats"]; total = snap["meta"]["total"]; patch = snap["meta"]["patch"]
+    champs = snap["champions"]
+    meta = build_item_meta(snap["items"])
     # all units incl. Lux skins for comp icons
     allmap = {}
     for c in champs:
         cr = c.get("character_record") or {}
         allmap[cr.get("character_id")] = {"name": cr.get("display_name") or cr.get("character_id"),
             "icon": cdragon_asset_url(cr.get("squareIconPath")), "cost": DEFAULT_COSTS.get((cr.get("display_name") or "").split(" (")[0])}
-    builds = None
-    if not a.no_cache and os.path.exists(CACHE) and time.time() - os.path.getmtime(CACHE) < 6 * 3600:
-        builds = json.load(open(CACHE))
-        print("using cache", CACHE)
-    if not builds:
-        print("fetch unit pages…")
-        builds = load_unit_builds(list(us), workers=12)
-        json.dump(builds, open(CACHE, "w"))
-    roster = build_roster(champs, builds, DEFAULT_COSTS)
-    print("fetch comps…")
-    groups = fetch_next_data(TACTICS + "/zh/team-compositions")["props"]["pageProps"]["initialData"]["groups"]
-    comps = []
-    for gr in groups:
-        for v in gr.values():
-            if isinstance(v, dict): comps += v.get("comps") or []
+    roster = build_roster(champs, snap["unit_builds"], DEFAULT_COSTS)
+    comps = snap["comps"]
     seen, top = set(), []
     for c in sorted([c for c in comps if c["count"] >= 200], key=lambda c: c["place"]):
         k = tuple(sorted(c["units"]))
@@ -169,10 +152,11 @@ def main():
     ver_html = '<section id="ver"><h2>站位结论（种族）</h2><div class="verdict">%s</div></section>' % verdict
     links = '<section id="go"><h2>去哪看</h2><div class="grid three">' + "".join(
         '<a class="box golink" href="%s"><h3>%s</h3><p class="hint">%s</p></a>' % x for x in PAGES[1:]) + '</div></section>'
-    bodies = {"index.html": insights + links + "<script>var H={'#craft':'craft.html','#cls':'class.html','#ori':'origin.html','#ver':'origin.html#ver'};if(H[location.hash])location.replace(H[location.hash]);</script>", "class.html": cls_html, "origin.html": ori_html + ver_html, "synergy.html": "", "craft.html": craft.section()[0]}
+    bodies = {"index.html": insights + links + "<script>var H={'#craft':'craft.html','#cls':'class.html','#ori':'origin.html','#ver':'origin.html#ver'};if(H[location.hash])location.replace(H[location.hash]);</script>", "class.html": cls_html, "origin.html": ori_html + ver_html, "synergy.html": "",
+              "craft.html": craft.section([tuple(c) for c in snap["craft"]["components"]], {tuple(r["pair"]): r for r in snap["craft"]["recipes"]})[0]}
     syn_mat, syn_pages = synergy.build(comps, roster, ORIGIN_ORDER, total, face, U, None)
     bodies["synergy.html"] = syn_mat
-    out = Path(a.out); out.mkdir(parents=True, exist_ok=True); (out / "synergy").mkdir(exist_ok=True)
+    out.mkdir(parents=True, exist_ok=True); (out / "synergy").mkdir(exist_ok=True)
     for old in (out / "synergy").glob("*.html"): old.unlink()
     for fn, (t, body) in syn_pages.items():
         nav = "".join('<a href="../%s"%s>%s</a>' % (f, ' class="cur"' if f == "synergy.html" else "", tt) for f, tt, _ in PAGES)

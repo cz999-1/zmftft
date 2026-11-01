@@ -38,7 +38,8 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
   - [tactics.tools](https://tactics.tools/zh/units)：英雄名次、前四率、选取率、出装统计、羁绊表现
   - [Community Dragon](https://raw.communitydragon.org/)：简体中文名称、头像/装备图标、装备配方（`zh_cn.json`）
 - **生成脚本**（只用 Python 标准库，无第三方依赖）
-  - `generate_tft_table.py`：抓取数据、映射中文名、推断站位、计算推荐出装与站位结论
+  - `fetch_data.py`：每个数据源只请求一次，原始响应缓存在 `cache/raw/`（已 gitignore，6 小时内复用），只把页面用到的字段存成快照 `data/<set>/<patch>.json`（带 set、版本、分段、tactics.tools 数据更新时间、抓取时间、来源）
+  - `generate_tft_table.py`：抓取工具、映射中文名、推断站位、计算推荐出装与站位结论
   - `craft.py`：从 Community Dragon 读取当前赛季配方，生成装备合成矩阵、纹章、冠冕
   - `build_site.py`：把以上内容组装成多页站点（共享顶部导航，内联 CSS/JS）：`index.html` 首页·洞察、`class.html` 职业站位、`origin.html` 种族站位+站位结论（只有 1 名英雄的种族合并为「单一英雄种族」一行）、`craft.html` 装备合成；页面间用相对链接互跳，旧的 `#craft` 等锚点会自动跳到新页面
 - **部署**：4 个 `*.html` 推到 `main`，由 GitHub Pages 直接托管
@@ -74,9 +75,10 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
 
 ```bash
 python3 -m data.riot.match_api   # 可选，需 RIOT_API_KEY；随后 python3 -m data.riot.compare
-python3 build_site.py            # 生成 index/class/origin/craft.html（会缓存出装数据到 /tmp）
-python3 build_site.py --no-cache # 强制重新抓取
-git add *.html && git commit -m "refresh data" && git push
+python3 build_site.py            # 抓取 → 存快照 data/<set>/<patch>.json → 只从快照生成页面
+python3 build_site.py --no-cache # 强制重新抓取（不用 cache/raw/）
+python3 build_site.py --data data/set18/18.5c.json   # 只用已有快照重新生成页面，不联网
+git add *.html synergy data && git commit -m "refresh data" && git push
 ```
 
 新赛季上线后，Community Dragon 与 tactics.tools 更新数据，重跑即可；赛季编号相关的过滤在脚本中自动检测/可调整。

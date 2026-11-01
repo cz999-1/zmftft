@@ -31,8 +31,10 @@ def blurb(it):
         d = " ".join("+%g%s" % (round(ef[k]*m,1), n) for k,n,m in st if ef.get(k)) or "纯属性装备"
     return d[:70] + ("…" if len(d) > 70 else "")
 
-def build(set_no=18):
-    d = json.loads(urllib.request.urlopen(urllib.request.Request(CD_JSON, headers={"User-Agent": "zmftft"}), timeout=60).read())
+def fetch():
+    return json.loads(urllib.request.urlopen(urllib.request.Request(CD_JSON, headers={"User-Agent": "zmftft"}), timeout=60).read())
+
+def build(d, set_no=18):
     im = {i["apiName"]: i for i in d["items"]}
     S = next(s for s in d["setData"] if s.get("number") == set_no and s.get("mutator") == "TFTSet%d" % set_no)
     names = set(S["items"])
@@ -52,9 +54,8 @@ def build(set_no=18):
     comps = [(c, im["TFT_Item_" + c]["name"], icon(im["TFT_Item_" + c]["icon"])) for c in COMPS]
     return comps, table
 
-def section(set_no=18):
-    comps, table = build(set_no)
-    head = '<th></th>' + "".join('<th><img src="%s" alt=""><span>%s</span></th>' % (i, e(n)) for _, n, i in comps)
+def section(comps, table, set_no=18):
+    head ='<th></th>' + "".join('<th><img src="%s" alt=""><span>%s</span></th>' % (i, e(n)) for _, n, i in comps)
     rows = []
     for a, an, ai in comps:
         cells = []
@@ -83,7 +84,7 @@ CSS = """.cw{overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r);b
 .emb li>img{width:32px;height:32px}.emb .rc img{width:18px;height:18px;opacity:.8}.emb small{color:var(--mu);margin-left:auto}"""
 
 if __name__ == "__main__":
-    s, n, t = section()
+    s, n, t = section(*build(fetch()))
     print(n, len(t))
     for k in [("BFSword","BFSword"),("TearOfTheGoddess","TearOfTheGoddess"),("Spatula","Spatula"),("BFSword","Spatula"),("FryingPan","NegatronCloak")]:
         v=t[tuple(sorted(k))];print(k,v["name"],v["desc"])
