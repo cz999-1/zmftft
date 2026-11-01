@@ -6,8 +6,8 @@
 import argparse, html as H
 from collections import defaultdict
 from pathlib import Path
-from generate_tft_table import (DEFAULT_COSTS, COST_COLORS, CLASS_ORDER, ORIGIN_ORDER, build_item_meta,
-    item_cn, item_icon, build_roster, cdragon_asset_url)
+from generate_tft_table import (COST_COLORS, build_item_meta, item_cn, item_icon, build_roster, cdragon_asset_url,
+    load_manual, row_orders, NO_CLASS)
 
 import craft, synergy, fetch_data
 e = lambda s: H.escape(str(s))
@@ -41,7 +41,7 @@ def card(meta, r, us, total):
 def matrix(meta, roster, key, order, us, total, sid, title):
     g = defaultdict(lambda: {"front": [], "mid": [], "back": []})
     for r in roster:
-        ts = r[key] or (["（无职业/特殊）"] if key == "classes" else [])
+        ts = r[key] or ([NO_CLASS] if key == "classes" else [])
         for t in ts:
             g[t][r["pos"]].append(r)
     names = [n for n in order if n in g] + sorted(n for n in g if n not in order)
@@ -64,7 +64,7 @@ def matrix(meta, roster, key, order, us, total, sid, title):
         sub = ('<small>%s</small>' % e("、".join(solo))) if n == "单一英雄种族" else ""
         rows.append(('<div class="trow"><div class="tn">%s<small>%d 名英雄</small>' + sub + '</div>%s</div>') % (
             e(n), len({r["id"] for p in g[n].values() for r in p}), "".join(cols)))
-    return '<section id="%s"><h2>%s</h2><div class="legend">前排 / 中排 / 后排 · 均名、前四、选率来自对局结束时的最终棋盘：高费卡、后期才成型的卡天然名次更好，只宜在同费用内参考，不代表强度 · 二/三件装为该英雄出场最多的组合，百分比为吃鸡率（第 1 名比例，全体基线 12.5%%），场次见悬停提示</div>%s</section>' % (sid, title, "".join(rows))
+    return '<section id="%s"><h2>%s</h2><div class="legend">前排 / 中排 / 后排为本站人工标注 · 均名、前四、选率来自对局结束时的最终棋盘：高费卡、后期才成型的卡天然名次更好，只宜在同费用内参考，不代表强度 · 二/三件装为该英雄出场最多的组合，百分比为吃鸡率（第 1 名比例，全体基线 12.5%%），场次见悬停提示</div>%s</section>' % (sid, title, "".join(rows))
 
 def main():
     ap = argparse.ArgumentParser()
@@ -81,7 +81,10 @@ def main():
 
 def render(snap, out):
     """页面只读快照，不联网。"""
-    us = snap["unit_stats"]; total = snap["meta"]["total"]
+    m = snap["meta"]; us = snap["unit_stats"]; total = m["total"]
+    manual = load_manual(m["set"])
+    costs = {k: v["cost"] for k, v in snap["official"]["units"].items()}
+    class_order, origin_order = row_orders(manual, snap["official"]["traits"])
     champs = snap["champions"]
     meta = build_item_meta(snap["items"])
     # all units incl. Lux skins, for the unit faces on the synergy pages
@@ -89,19 +92,19 @@ def render(snap, out):
     for c in champs:
         cr = c.get("character_record") or {}
         allmap[cr.get("character_id")] = {"name": cr.get("display_name") or cr.get("character_id"),
-            "icon": cdragon_asset_url(cr.get("squareIconPath")), "cost": DEFAULT_COSTS.get((cr.get("display_name") or "").split(" (")[0])}
-    roster = build_roster(champs, snap["unit_builds"], DEFAULT_COSTS)
+            "icon": cdragon_asset_url(cr.get("squareIconPath")), "cost": costs.get(cr.get("character_id"))}
+    roster = build_roster(champs, snap["unit_builds"], costs, manual)
     comps = snap["comps"]
     def U(i): return allmap.get(i) or {"name": i.replace("DA_", ""), "icon": "", "cost": None}
-    cls_html = matrix(meta, roster, "classes", CLASS_ORDER, us, total, "cls", "职业羁绊 × 站位")
-    ori_html = matrix(meta, roster, "origins", ORIGIN_ORDER, us, total, "ori", "种族羁绊 × 站位")
+    cls_html = matrix(meta, roster, "classes", class_order, us, total, "cls", "职业羁绊 × 站位")
+    ori_html = matrix(meta, roster, "origins", origin_order, us, total, "ori", "种族羁绊 × 站位")
     links = '<section id="go"><h2>去哪看</h2><div class="grid three">' + "".join(
         '<a class="box golink" href="%s"><h3>%s</h3><p class="hint">%s</p></a>' % x for x in PAGES[1:]) + '</div></section>'
     bodies = {"index.html": REMOVED + links + "<script>var H={'#craft':'craft.html','#cls':'class.html','#ori':'origin.html','#ver':'origin.html'};if(H[location.hash])location.replace(H[location.hash]);</script>", "class.html": cls_html, "origin.html": ori_html, "synergy.html": "",
-              "craft.html": craft.section([tuple(c) for c in snap["craft"]["components"]], {tuple(r["pair"]): r for r in snap["craft"]["recipes"]})[0]}
-    syn_mat, syn_pages = synergy.build(comps, roster, ORIGIN_ORDER, total, face, U, None)
+              "craft.html": craft.section([tuple(c) for c in snap["craft"]["components"]], {tuple(r["pair"]): r for r in snap["craft"]["recipes"]}, m["set"])[0]}
+    syn_mat, syn_pages = synergy.build(comps, roster, origin_order, total, face, U, None)
     bodies["synergy.html"] = syn_mat
-    m = snap["meta"]; tpl = TPL
+    tpl = TPL
     for k, v in (("{{SET}}", m["set"]), ("{{PATCH}}", m["patch_label"] or "tactics.tools 编号 %s" % m["patch"]),
                  ("{{SCOPE}}", ("排位 · %s" % m["rank_label"] if m["rank_label"] else "分段未注明") + " · 地区未注明"),
                  ("{{N}}", "{:,}".format(total)), ("{{DATE}}", (m["last_updated"] or m["fetched_at"]).replace("T", " ")[:16] + " UTC")):

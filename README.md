@@ -35,10 +35,11 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
 
 - **数据源**
   - [tactics.tools](https://tactics.tools/zh/units)：英雄名次、前四率、选取率、出装统计、羁绊表现
-  - [Community Dragon](https://raw.communitydragon.org/)：简体中文名称、头像/装备图标、装备配方（`zh_cn.json`）
+  - [Community Dragon](https://raw.communitydragon.org/)：英雄中文名、费用、羁绊归属、头像/装备图标、装备配方（`zh_cn.json`）
+- **人工标注** `sets/set<N>.json`（官方数据里没有的部分）：羁绊类型（职业 / 种族）与行顺序、每个英雄的前/中/后排、要隐藏的 id（拉克丝的羁绊形态）、改名。按 id 写，名字只为方便阅读
 - **生成脚本**（只用 Python 标准库，无第三方依赖）
   - `fetch_data.py`：每个数据源只请求一次，原始响应缓存在 `cache/raw/`（已 gitignore，6 小时内复用），只把页面用到的字段存成快照 `data/<set>/<patch>.json`（带 set、版本、分段、tactics.tools 数据更新时间、抓取时间、来源）
-  - `generate_tft_table.py`：抓取工具、映射中文名、推断站位、计算推荐出装
+  - `generate_tft_table.py`：抓取工具、组装英雄表（官方中文名与费用 + `sets/` 里的人工标注）、出装
   - `craft.py`：从 Community Dragon 读取当前赛季配方，生成装备合成矩阵、纹章、冠冕
   - `build_site.py`：把以上内容组装成多页站点（共享顶部导航，内联 CSS/JS）：`index.html` 首页（下线说明 + 各页入口）、`class.html` 职业站位、`origin.html` 种族站位（只有 1 名英雄的种族合并为「单一英雄种族」一行）、`craft.html` 装备合成；页面间用相对链接互跳，旧的 `#craft` 等锚点会自动跳到新页面
 - **部署**：4 个 `*.html` 推到 `main`，由 GitHub Pages 直接托管
@@ -46,9 +47,9 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
 ### 数据从哪来（分工）
 | 来源 | 角色 |
 |---|---|
-| **Riot Data Dragon**（官方，免 key） | 当前版本号、英雄/装备/羁绊官方中文名与费用、官方图标；`build_site.py` 每次自动拉取快照校验赛季 |
+| **Riot Data Dragon**（官方，免 key） | 当前版本号、英雄/装备/羁绊官方中文名与费用、官方图标；目前构建不使用（`python3 -m data.riot.ddragon` 可单独拉取） |
 | **Riot TFT Match API**（官方，需 key） | 本地小样本自检、与 tactics.tools 对比；不上页面（样本太小，而且开发 / 个人 key 的数据按 Riot 规定不能用于公开站点） |
-| **Community Dragon** | 现有主数据：完整游戏文件解包（羁绊效果数值、合成配方、技能描述、更全的图标），更新最快 |
+| **Community Dragon** | 现有主数据：完整游戏文件解包（英雄中文名、费用、羁绊归属、羁绊效果数值、合成配方、技能描述、更全的图标），更新最快 |
 | **tactics.tools** | 大样本统计：名次、出装 |
 
 详见 [data/riot/README.md](data/riot/README.md)。
@@ -62,7 +63,7 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
 | 更新频率 | 随正式补丁发布，常滞后数天 | 实时 | 补丁/PBE 推送后很快更新 |
 | 需要 key | 否 | 是（RIOT_API_KEY） | 否 |
 
-**分工**：Data Dragon 负责“官方口径”（版本号、中文名、费用校验）；Community Dragon 仍是页面与合成表主数据；Match API 小样本自检并与 tactics.tools 对比；tactics.tools 提供大样本名次与出装统计。
+**分工**：Community Dragon 是页面与合成表的主数据（中文名、费用、羁绊归属都从这里读）；Match API 小样本自检并与 tactics.tools 对比；tactics.tools 提供大样本名次与出装统计。
 
 #### 配置 Riot key（只在本地）
 `cp .env.example .env`，填 `RIOT_API_KEY=`（`.env`、`config.local*`、`data/riot/riot.local.json`、`data/riot/cache/` 均已 gitignore）。然后：
@@ -93,7 +94,7 @@ git add *.html synergy data && git commit -m "refresh data" && git push
 
 - 不是完整的阵容模拟器或棋盘编辑器
 - 不替代游戏客户端或专业数据站，统计数据以来源站为准
-- 站位为根据职业推断的参考，不是唯一正确答案
+- 站位为本站人工标注（`sets/set<N>.json`）的参考，不是唯一正确答案；以前写“按职业推断”，其实 65 个英雄全是手写的
 
 ## 致谢
 

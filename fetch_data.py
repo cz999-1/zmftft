@@ -6,7 +6,8 @@
 import argparse, json, re, time
 from datetime import datetime, timezone
 from pathlib import Path
-from generate_tft_table import fetch, fetch_json, fetch_next_data, load_unit_builds, detect_set_filter, TACTICS, CDRAGON
+from generate_tft_table import (fetch, fetch_json, fetch_next_data, load_unit_builds, detect_set_filter, set_number,
+    official_units, official_traits, TACTICS, CDRAGON)
 import craft
 
 ROOT = Path(__file__).resolve().parent
@@ -66,7 +67,7 @@ def make_snapshot(raw):
     """从原始响应取出页面用到的字段。"""
     pp = raw["units"]["pageProps"]; sd = pp["statsData"]; ap = pp.get("aperture") or {}
     champs = raw["champs"]
-    mk = detect_set_filter(champs)
+    mk = detect_set_filter(champs); set_no = set_number(mk)
     f = [c for c in champs if mk.lower() in ((c.get("character_record") or {}).get("squareIconPath") or "").lower()]
     if len(f) >= 20: champs = f
     builds = {u: {"itemPairs": b["itemPairs"][:TOP_BUILDS], "itemTrios": b["itemTrios"][:TOP_BUILDS], "itemCountData": b["itemCountData"]}
@@ -78,14 +79,15 @@ def make_snapshot(raw):
     for gr in raw["groups"]:
         for v in gr.values():
             if isinstance(v, dict): comps += v.get("comps") or []
-    components, table = craft.build(raw["cd_tft"])
+    components, table = craft.build(raw["cd_tft"], set_no)
     return {
-        "meta": {"set": int(re.search(r"(\d+)$", mk).group(1)), "set_marker": mk, "patch":(ap.get("patch") or {}).get("_0", "?"), "patch_label": raw["units"]["patch_label"],
+        "meta": {"set": set_no, "set_marker": mk, "patch": (ap.get("patch") or {}).get("_0", "?"), "patch_label": raw["units"]["patch_label"],
                  "rank_label": raw["units"]["rank_label"], "aperture": ap, "total": sd["totalEntries"],
                  "last_updated": datetime.fromtimestamp(sd["lastUpdated"], timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if sd.get("lastUpdated") else None,
                  "fetched_at": datetime.fromtimestamp(raw["fetched_at"], timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                  "sources": {"tactics.tools": [TACTICS + "/zh/units", TACTICS + "/zh/units/<id>", TACTICS + "/zh/team-compositions"],
                              "community_dragon": [CDRAGON + "/zh_cn/v1/tftchampions.json", CDRAGON + "/zh_cn/v1/tftitems.json", craft.CD_JSON]}},
+        "official": {"units": official_units(raw["cd_tft"], set_no), "traits": official_traits(raw["cd_tft"], set_no)},
         "unit_stats": {u: {k: s.get(k) for k in ("count", "place", "top4")} for u, s in sd["units"].items()},
         "champions": [{"character_record": {k: (c.get("character_record") or {}).get(k) for k in ("character_id", "display_name", "squareIconPath", "traits")}} for c in champs],
         "items": [{k: it.get(k) for k in ("nameId", "name", "squareIconPath")} for it in raw["items"] if item_keys(it.get("nameId") or "") & used],

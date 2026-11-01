@@ -22,18 +22,33 @@ UA = {"User-Agent": "Mozilla/5.0 (compatible; TFT-Table-Generator/1.0)"}
 TACTICS = "https://tactics.tools"
 CDRAGON = "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global"
 
-CLASS_SET = {
-    "魔战士", "斗士", "护卫", "裁决使", "猎人", "神谕", "主宰",
-    "迅捷射手", "狂战士", "法师", "召唤师", "重装战士", "魔岩巨兽",
-}
-FRONT_CLASSES = {"斗士", "主宰", "护卫", "重装战士", "魔岩巨兽"}
-MID_CLASSES = {"魔战士", "狂战士"}
-BACK_CLASSES = {"法师", "迅捷射手", "神谕", "裁决使", "召唤师", "猎人"}
+CD_TFT = "https://raw.communitydragon.org/latest/cdragon/tft/zh_cn.json"
+SETS = Path(__file__).resolve().parent / "sets"
 COST_COLORS = {1: "#9aa4af", 2: "#11b288", 3: "#207ac7", 4: "#c440c4", 5: "#ffb93b"}
-POS_OVERRIDE = {'墨菲特': 'front', '约里克': 'front', '瑟提': 'front', '伊莉丝': 'front', '奥恩': 'front', '阿利斯塔': 'front', '赫卡里姆': 'front', '纳尔': 'front', '洛': 'front', '莉莉娅': 'front', '慎': 'front', '阿木木': 'front', '蔚': 'front', '蕾欧娜': 'front', '瑟庄妮': 'front', '峡谷迅捷蟹': 'front', '远古石甲虫': 'front', '绯红印记树怪': 'front', '苍蓝雕纹魔像': 'front', '远古巨龙': 'front', '可酷伯': 'front', '拉莫斯': 'front', '费德提克': 'front', '茂凯': 'front', '塔里克': 'front', '雷克塞': 'front', '沃里克': 'mid', '易': 'mid', '卡蜜尔': 'mid', '莫甘娜': 'mid', '阿卡丽': 'mid', '黛安娜': 'mid', '奈德丽': 'mid', '暗影狼': 'mid', '卡兹克': 'mid', '雷恩加尔': 'mid', '维迦': 'back', '阿兹尔': 'back', '卡尔玛': 'back', '芸阿娜': 'back', '阿狸': 'back', '艾希': 'back', '凯特琳': 'back', '卡西奥佩娅': 'back', '霞': 'back', '乐芙兰': 'back', '伊泽瑞尔': 'back', '崔丝塔娜': 'back', '韦鲁斯': 'back', '凯南': 'back', '厄斐琉斯': 'back', '拉露恩': 'back', '希维尔': 'back', '凯尔': 'back', '绯红树怪': 'back', '苍蓝哨戒': 'back', '魔沼蛙': 'back', '深红锋喙鸟': 'back', '提莫': 'back', '索拉卡': 'back', '克格莫': 'back', '拉克丝': 'back', '德莱文': 'back', '婕拉': 'back', '艾翁': 'back'}
-DEFAULT_COSTS = {'雷克塞': 1, '墨菲特': 4, '沃里克': 2, '维迦': 1, '阿兹尔': 3, '约里克': 1, '瑟提': 4, '易': 3, '卡尔玛': 1, '芸阿娜': 2, '阿狸': 4, '艾希': 5, '伊莉丝': 2, '卡蜜尔': 1, '莫甘娜': 4, '凯特琳': 2, '卡西奥佩娅': 3, '奥恩': 1, '阿利斯塔': 2, '赫卡里姆': 3, '纳尔': 5, '霞': 1, '乐芙兰': 2, '伊泽瑞尔': 4, '洛': 1, '莉莉娅': 4, '崔丝塔娜': 3, '慎': 2, '阿木木': 4, '阿卡丽': 1, '韦鲁斯': 1, '凯南': 5, '黛安娜': 3, '厄斐琉斯': 4, '拉露恩': 5, '蔚': 3, '奈德丽': 4, '希维尔': 4, '蕾欧娜': 1, '瑟庄妮': 2, '凯尔': 2, '峡谷迅捷蟹': 2, '远古石甲虫': 3, '绯红印记树怪': 4, '苍蓝雕纹魔像': 4, '远古巨龙': 5, '暗影狼': 2, '绯红树怪': 1, '苍蓝哨戒': 1, '魔沼蛙': 2, '深红锋喙鸟': 3, '卡兹克': 3, '雷恩加尔': 3, '可酷伯': 1, '拉莫斯': 3, '提莫': 2, '费德提克': 3, '索拉卡': 4, '克格莫': 3, '拉克丝': 5, '德莱文': 5, '艾翁': 5, '茂凯': 5, '塔里克': 5, '婕拉': 4}
-CLASS_ORDER = ["斗士","主宰","护卫","重装战士","魔岩巨兽","魔战士","狂战士","猎人","法师","迅捷射手","神谕","裁决使","召唤师","（无职业/特殊）"]
-ORIGIN_ORDER = ["黑荆棘","灵魂莲华","魔女","永恒之森","花仙子","地狱火","月蚀骑士","野兽之灵","日蚀骑士","峡谷野怪","宿敌","约德尔人和朋友","绝命花妖","帝王斑蝶","月华神女","赏金猎人","宝石骑士","翠神","远古树精","荆棘之兴","自然之力！大元素使","顶级掠食者"]
+NO_CLASS = "（无职业/特殊）"
+# Costs, names and trait lists come from Community Dragon. Trait types (class / origin), row order,
+# positions and the Lux forms to hide are not in any official data: they are hand-written per set
+# in sets/set<N>.json (the 65 Set 18 costs once hand-written here all matched Community Dragon 16.21).
+
+
+def load_manual(set_no):
+    """sets/set<N>.json: hand-written trait types, row order, positions, hidden ids, renames."""
+    p = SETS / ("set%d.json" % set_no)
+    if not p.exists():
+        raise SystemExit("missing %s: annotate the new set's trait types and positions first (README: Set 迁移清单)" % p)
+    return json.loads(p.read_text(encoding="utf-8"))
+
+def official_units(cd_tft, set_no):
+    """Community Dragon cdragon/tft/zh_cn.json -> {apiName: {"name", "cost", "traits"}} for one set."""
+    return {c["apiName"]: {"name": c["name"], "cost": c["cost"], "traits": c["traits"]} for c in cd_tft["sets"][str(set_no)]["champions"]}
+
+def official_traits(cd_tft, set_no):
+    return {t["apiName"]: t["name"] for t in cd_tft["sets"][str(set_no)]["traits"]}
+
+def row_orders(manual, trait_names):
+    """Matrix row order: the manual file's order, with the official Chinese trait names."""
+    return ([trait_names.get(t, n) for t, n in manual["classes"]] + [NO_CLASS],
+            [trait_names.get(t, n) for t, n in manual["origins"]])
 
 
 def fetch(url, timeout=30):
@@ -96,18 +111,6 @@ def item_icon(meta, iid):
             return cdragon_asset_url(meta[key]["icon"])
     return ""
 
-def infer_pos(name, classes):
-    if name in POS_OVERRIDE:
-        return POS_OVERRIDE[name]
-    for c in classes:
-        if c in FRONT_CLASSES:
-            return "front"
-        if c in MID_CLASSES:
-            return "mid"
-        if c in BACK_CLASSES:
-            return "back"
-    return "mid"
-
 def load_unit_builds(unit_ids, workers=12):
     def one(uid, tries=4):
         url = TACTICS + "/zh/units/" + uid.lower()
@@ -137,22 +140,24 @@ def load_unit_builds(unit_ids, workers=12):
 # carry_tags (阵眼 = 3★/3-item 1st-place lift) and the 站位结论 verdict. All three read final-board
 # results that need a long game to reach, so they show who was already winning, not what wins.
 
-def build_roster(champs_zh, unit_builds, costs):
+def build_roster(champs_zh, unit_builds, costs, manual):
+    """costs: {character_id: cost} from official data; manual: sets/set<N>.json (load_manual)."""
+    hide = {i for i, _ in manual["hide"]}
+    class_ids = {t for t, _ in manual["classes"]}
     roster = []
     for item in champs_zh:
         cr = item.get("character_record") or {}
         path = cr.get("squareIconPath") or ""
         cid = cr.get("character_id") or ""
-        name = cr.get("display_name") or ""
-        if name.startswith("拉克丝 ("):
+        if cid in hide:
             continue
-        if cid == "DA_Lux18_Base":
-            name = "拉克丝"
-        traits = [t.get("name") for t in (cr.get("traits") or [])]
-        classes = [t for t in traits if t in CLASS_SET]
-        origins = [t for t in traits if t not in CLASS_SET]
-        cost = costs.get(name) or costs.get(name.split("（")[0].strip())
-        pos = infer_pos(name, classes)
+        name = manual["rename"].get(cid) or cr.get("display_name") or ""
+        tr = cr.get("traits") or []
+        traits = [t.get("name") for t in tr]
+        classes = [t.get("name") for t in tr if t.get("id") in class_ids]
+        origins = [t.get("name") for t in tr if t.get("id") not in class_ids]
+        cost = costs.get(cid)
+        pos = (manual["positions"].get(cid) or [None])[0]
         builds = unit_builds.get(cid) or {}
         pairs = builds.get("itemPairs") or []
         trios = builds.get("itemTrios") or []
@@ -209,7 +214,7 @@ def group_by(roster, key):
     for r in roster:
         tags = r[key]
         if not tags and key == "classes":
-            g["（无职业/特殊）"][r["pos"]].append(r)
+            g[NO_CLASS][r["pos"]].append(r)
             continue
         for t in tags:
             g[t][r["pos"]].append(r)
@@ -258,7 +263,7 @@ th, td { border:1px solid var(--line); vertical-align:top; padding:10px; } th { 
 .note { font-size:12px; color:var(--muted); margin-top:8px; }
 """
 
-def render_html(roster, item_meta, patch_label):
+def render_html(roster, item_meta, patch_label, class_order, origin_order):
     by_class = group_by(roster, "classes")
     by_origin = group_by(roster, "origins")
     return """<!DOCTYPE html>
@@ -271,7 +276,7 @@ def render_html(roster, item_meta, patch_label):
 </head>
 <body>
 <h1>TFT 羁绊 × 站位 + 装备</h1>
-<p class="sub">%s · 数据来自 tactics.tools + Community Dragon · 二/三件装为出场最多组合（胜率%% · 平均名次）</p>
+<p class="sub">%s · 数据来自 tactics.tools + Community Dragon · 二/三件装为出场最多组合（吃鸡率%% · 平均名次；吃鸡率全体基线 12.5%%）· 站位为人工标注</p>
 <div class="legend">
   <span><i class="dot" style="background:#9aa4af"></i>1费</span>
   <span><i class="dot" style="background:#11b288"></i>2费</span>
@@ -295,8 +300,8 @@ def render_html(roster, item_meta, patch_label):
 </html>
 """ % (
         htmlmod.escape(patch_label), CSS, htmlmod.escape(patch_label),
-        table_rows(item_meta, by_class, CLASS_ORDER),
-        table_rows(item_meta, by_origin, ORIGIN_ORDER),
+        table_rows(item_meta, by_class, class_order),
+        table_rows(item_meta, by_origin, origin_order),
     )
 
 def detect_set_filter(champs_zh):
@@ -306,19 +311,20 @@ def detect_set_filter(champs_zh):
         m = re.search(r"(Set\d+|TFT_Set\d+)", path, re.I)
         if m:
             counts[m.group(1)] += 1
-    return max(counts.items(), key=lambda x: x[1])[0] if counts else "Set18"
+    if not counts:
+        raise SystemExit("cannot detect the current set from Community Dragon icon paths; pass --set")
+    return max(counts.items(), key=lambda x: x[1])[0]
+
+def set_number(set_marker):
+    return int(re.search(r"(\d+)$", set_marker).group(1))
 
 def main():
     ap = argparse.ArgumentParser(description="Generate TFT Chinese trait x position HTML table")
     ap.add_argument("--out", default="tft-traits-items.html")
-    ap.add_argument("--costs", help="optional JSON map Chinese name -> cost")
+    ap.add_argument("--costs", help="optional JSON map character_id -> cost, overrides Community Dragon")
     ap.add_argument("--workers", type=int, default=12)
     ap.add_argument("--set", dest="set_marker", default="")
     args = ap.parse_args()
-
-    costs = dict(DEFAULT_COSTS)
-    if args.costs:
-        costs.update(json.loads(Path(args.costs).read_text(encoding="utf-8")))
 
     print("1/5 fetching tactics.tools units page…")
     units_pp = fetch_next_data(TACTICS + "/zh/units")["props"]["pageProps"]
@@ -341,19 +347,25 @@ def main():
     if len(filtered) >= 20:
         champs_zh = filtered
         print("   champions in set:", len(champs_zh))
+    set_no = set_number(set_marker)
+    cd_tft = fetch_json(CD_TFT)
+    costs = {k: v["cost"] for k, v in official_units(cd_tft, set_no).items()}
+    if args.costs:
+        costs.update(json.loads(Path(args.costs).read_text(encoding="utf-8")))
+    manual = load_manual(set_no)
 
     print("3/5 fetching item pairs/trios for %d units…" % len(unit_ids))
     unit_builds = load_unit_builds(unit_ids, workers=args.workers)
 
     print("4/5 building roster…")
-    roster = build_roster(champs_zh, unit_builds, costs)
-    missing = [r["name"] for r in roster if not r["cost"]]
+    roster = build_roster(champs_zh, unit_builds, costs, manual)
+    missing = [r["name"] for r in roster if not r["cost"] or not r["pos"]]
     if missing:
-        print("   missing costs (%d): %s" % (len(missing), ", ".join(missing[:12])))
-        print("   tip: pass --costs costs.json")
+        print("   missing cost or position (%d): %s" % (len(missing), ", ".join(missing[:12])))
+        print("   tip: pass --costs costs.json, or add positions to sets/set%d.json" % set_no)
 
     print("5/5 writing HTML…")
-    doc = render_html(roster, item_meta, patch_label)
+    doc = render_html(roster, item_meta, patch_label, *row_orders(manual, official_traits(cd_tft, set_no)))
     out = Path(args.out)
     out.write_text(doc, encoding="utf-8")
     print("done → %s (%d bytes, %d champions)" % (out.resolve(), out.stat().st_size, len(roster)))
