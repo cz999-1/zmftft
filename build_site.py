@@ -9,7 +9,7 @@ from pathlib import Path
 from generate_tft_table import (COST_COLORS, build_item_meta, item_cn, item_icon, build_roster, cdragon_asset_url,
     load_manual, row_orders, NO_CLASS)
 
-import craft, synergy, fetch_data
+import craft, synergy, fetch_data, checks
 e = lambda s: H.escape(str(s))
 
 def face(u, size=""):
@@ -74,6 +74,7 @@ def main():
     a = ap.parse_args()
     if a.data:
         path = Path(a.data)
+        checks.require(fetch_data.load(path))
     else:
         path = fetch_data.save(fetch_data.make_snapshot(fetch_data.collect_raw(a.no_cache)))
         print("snapshot →", path)

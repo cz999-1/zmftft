@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from generate_tft_table import (fetch, fetch_json, fetch_next_data, load_unit_builds, detect_set_filter, set_number,
     official_units, official_traits, TACTICS, CDRAGON)
-import craft
+import craft, checks
 
 ROOT = Path(__file__).resolve().parent
 RAW = ROOT / "cache" / "raw"
@@ -35,7 +35,9 @@ def units_page():
     nd = json.loads(re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S).group(1))
     text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", re.sub(r"<(script|style)\b.*?</\1>", " ", html, flags=re.S)))
     m = re.search(r"排位模式 (\S+) (\d+\.\d+[a-z]?) ", text)
-    return {"pageProps": nd["props"]["pageProps"], "rank_label": m.group(1) if m else None, "patch_label": m.group(2) if m else None}
+    t = re.search(r"<title>[^<]*\bSet (\d+)\b", html)
+    return {"pageProps": nd["props"]["pageProps"], "rank_label": m.group(1) if m else None, "patch_label": m.group(2) if m else None,
+            "set_label": int(t.group(1)) if t else None}
 
 
 def collect_raw(refresh=False, offline=False):
@@ -82,7 +84,7 @@ def make_snapshot(raw):
     components, table = craft.build(raw["cd_tft"], set_no)
     return {
         "meta": {"set": set_no, "set_marker": mk, "patch": (ap.get("patch") or {}).get("_0", "?"), "patch_label": raw["units"]["patch_label"],
-                 "rank_label": raw["units"]["rank_label"], "aperture": ap, "total": sd["totalEntries"],
+                 "rank_label": raw["units"]["rank_label"], "tactics_set": raw["units"].get("set_label"), "aperture": ap, "total": sd["totalEntries"],
                  "last_updated": datetime.fromtimestamp(sd["lastUpdated"], timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if sd.get("lastUpdated") else None,
                  "fetched_at": datetime.fromtimestamp(raw["fetched_at"], timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                  "sources": {"tactics.tools": [TACTICS + "/zh/units", TACTICS + "/zh/units/<id>", TACTICS + "/zh/team-compositions"],
@@ -103,6 +105,13 @@ def snapshot_path(snap):
 
 
 def save(snap):
+    """先过构建护栏（checks.py）；不通过时快照只写到 cache/failed_snapshot.json 供排查。"""
+    try:
+        checks.require(snap)
+    except SystemExit:
+        RAW.parent.mkdir(parents=True, exist_ok=True)
+        (RAW.parent / "failed_snapshot.json").write_text(json.dumps(snap, ensure_ascii=False, indent=1), encoding="utf-8")
+        raise
     p = snapshot_path(snap)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(snap, ensure_ascii=False, indent=1), encoding="utf-8")

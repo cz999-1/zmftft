@@ -40,6 +40,8 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
 - **生成脚本**（只用 Python 标准库，无第三方依赖）
   - `fetch_data.py`：每个数据源只请求一次，原始响应缓存在 `cache/raw/`（已 gitignore，6 小时内复用），只把页面用到的字段存成快照 `data/<set>/<patch>.json`（带 set、版本、分段、tactics.tools 数据更新时间、抓取时间、来源）
   - `generate_tft_table.py`：抓取工具、组装英雄表（官方中文名与费用 + `sets/` 里的人工标注）、出装
+  - `checks.py`：构建护栏，每次存快照和生成页面前都跑；不通过就退出、什么都不写（问题列表会打印出来，快照留在 `cache/failed_snapshot.json` 供排查）。检查：Community Dragon、tactics.tools 页面标题和 `sets/` 文件的赛季号一致；tactics.tools 的每个英雄 id 都在官方数据里；矩阵里每个英雄有中文名、1–5 费、图标、站位，人工标注里的名字和官方一致；用到的每个羁绊都标了职业或种族；棋盘数、阵容数、合成表大小在合理范围
+  - `tests/`：`python3 -m unittest discover -s tests`（标准库，不联网）
   - `craft.py`：从 Community Dragon 读取当前赛季配方，生成装备合成矩阵、纹章、冠冕
   - `build_site.py`：把以上内容组装成多页站点（共享顶部导航，内联 CSS/JS）：`index.html` 首页（下线说明 + 各页入口）、`class.html` 职业站位、`origin.html` 种族站位（只有 1 名英雄的种族合并为「单一英雄种族」一行）、`craft.html` 装备合成；页面间用相对链接互跳，旧的 `#craft` 等锚点会自动跳到新页面
 - **部署**：4 个 `*.html` 推到 `main`，由 GitHub Pages 直接托管
