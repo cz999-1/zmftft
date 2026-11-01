@@ -6,8 +6,8 @@
 import argparse, time, html as H
 from collections import defaultdict
 from pathlib import Path
-from generate_tft_table import (DEFAULT_COSTS, COST_COLORS, CLASS_ORDER, ORIGIN_ORDER, ZH_TRAIT_TO_TID, build_item_meta,
-    item_cn, item_icon, best_trait_perf, build_roster, verdict_section, cdragon_asset_url, CLASS_SET)
+from generate_tft_table import (DEFAULT_COSTS, COST_COLORS, CLASS_ORDER, ORIGIN_ORDER, build_item_meta,
+    item_cn, item_icon, build_roster, cdragon_asset_url)
 
 import craft, synergy, fetch_data
 e = lambda s: H.escape(str(s))
@@ -28,10 +28,6 @@ def build_html(meta, b, label):
     return '<div class="bd" title="%s"><b>%s</b>%s<span>%.0f%%</span></div>' % (
         e(" + ".join(item_cn(meta, i) for i in ids)), label, icons, b.get("won") or 0)
 
-EYE_LBL = {"star": ("ey3", "阵眼—三星", "3★ 比 2★ 吃鸡率 +%.1fpp"), "item": ("eyi", "阵眼—装备", "满3件装比0件 吃鸡率 +%.1fpp")}
-def eyes(tags):
-    return "".join('<b class="eye %s" title="%s">%s</b>' % (EYE_LBL[k][0], EYE_LBL[k][2] % d, EYE_LBL[k][1]) for k, d in tags)
-
 def card(meta, r, us, total):
     s = us.get(r["id"]) or {}
     stat = ""
@@ -40,10 +36,10 @@ def card(meta, r, us, total):
             pcls(s["place"]), s["place"], s["top4"], s["count"] / total * 100)
     tags = "".join("<i>%s</i>" % e(t) for t in r["traits"])
     return ('<div class="ch" data-k="%s" data-cost="%s" data-pos="%s" style="--c:%s"><div class="ph"><img src="%s" alt="%s" loading="lazy" onerror="this.style.opacity=.2">'
-            '<em>%s</em></div><div class="nm">%s</div><div class="eyes">%s</div><div class="tg">%s</div>%s%s%s</div>') % (
+            '<em>%s</em></div><div class="nm">%s</div><div class="tg">%s</div>%s%s%s</div>') % (
         e(r["name"] + " " + " ".join(r["traits"])), r["cost"] or "", r.get("pos") or "",
         COST_COLORS.get(r["cost"], "#666"), e(r["icon"]), e(r["name"]),
-        r["cost"] or "?", e(r["name"]), eyes(r.get("eye") or []), tags, stat, build_html(meta, r["top2"], "二"), build_html(meta, r["top3"], "三"))
+        r["cost"] or "?", e(r["name"]), tags, stat, build_html(meta, r["top2"], "二"), build_html(meta, r["top3"], "三"))
 
 def matrix(meta, roster, key, order, us, total, sid, title):
     g = defaultdict(lambda: {"front": [], "mid": [], "back": []})
@@ -71,7 +67,7 @@ def matrix(meta, roster, key, order, us, total, sid, title):
         sub = ('<small>%s</small>' % e("、".join(solo))) if n == "单一英雄种族" else ""
         rows.append(('<div class="trow"><div class="tn">%s<small>%d 名英雄</small>' + sub + '</div>%s</div>') % (
             e(n), len({r["id"] for p in g[n].values() for r in p}), "".join(cols)))
-    return '<section id="%s"><h2>%s</h2><div class="legend">前排 / 中排 / 后排 · 均名颜色：<span class="good">≤3.8 强</span> <span class="bad">≥4.5 弱</span> · 二/三件装为出场最多组合（胜率%%） · <b class="eye ey3">阵眼—三星</b> 3★比2★吃鸡率≥+6pp（3★样本≥2000） <b class="eye eyi">阵眼—装备</b> 3件装比0件吃鸡率≥+5pp（样本≥3000）</div>%s</section>' % (sid, title, "".join(rows))
+    return '<section id="%s"><h2>%s</h2><div class="legend">前排 / 中排 / 后排 · 均名颜色：<span class="good">≤3.8 强</span> <span class="bad">≥4.5 弱</span> · 二/三件装为出场最多组合（胜率%%）</div>%s</section>' % (sid, title, "".join(rows))
 
 def main():
     ap = argparse.ArgumentParser()
@@ -88,10 +84,10 @@ def main():
 
 def render(snap, out):
     """页面只读快照，不联网。"""
-    us = snap["unit_stats"]; ts = snap["trait_stats"]; total = snap["meta"]["total"]; patch = snap["meta"]["patch"]
+    us = snap["unit_stats"]; total = snap["meta"]["total"]; patch = snap["meta"]["patch"]
     champs = snap["champions"]
     meta = build_item_meta(snap["items"])
-    # all units incl. Lux skins for comp icons
+    # all units incl. Lux skins, for the unit faces on the synergy pages
     allmap = {}
     for c in champs:
         cr = c.get("character_record") or {}
@@ -99,60 +95,12 @@ def render(snap, out):
             "icon": cdragon_asset_url(cr.get("squareIconPath")), "cost": DEFAULT_COSTS.get((cr.get("display_name") or "").split(" (")[0])}
     roster = build_roster(champs, snap["unit_builds"], DEFAULT_COSTS)
     comps = snap["comps"]
-    seen, top = set(), []
-    for c in sorted([c for c in comps if c["count"] >= 200], key=lambda c: c["place"]):
-        k = tuple(sorted(c["units"]))
-        if k in seen: continue
-        seen.add(k); top.append(c)
-        if len(top) == 6: break
     def U(i): return allmap.get(i) or {"name": i.replace("DA_", ""), "icon": "", "cost": None}
-    rid0 = {r["id"]: r for r in roster}
-    def cface(i):
-        t = (rid0.get(i) or {}).get("eye") or []
-        mk = "".join('<b class="eb %s">%s</b>' % (EYE_LBL[k][0], "3★" if k == "star" else "装") for k, _ in t)
-        return '<span class="cf">%s%s</span>' % (face(U(i)), mk)
-    def ceyes(c):
-        out = []
-        for i in c["units"]:
-            for k, d in (rid0.get(i) or {}).get("eye") or []:
-                out.append('<b class="eye %s" title="%s">%s · %s</b>' % (EYE_LBL[k][0], EYE_LBL[k][2] % d, e(U(i)["name"]), EYE_LBL[k][1]))
-        return '<div class="eyes">%s</div>' % ("".join(out) or '<span class="hint">无明显阵眼</span>')
-    comp_html = "".join(
-        '<div class="cc"><div class="row">%s</div><div class="kv"><span class="%s">均名 <b>%.2f</b></span><span>前四 <b>%.0f%%</b></span><span>吃鸡 <b>%.0f%%</b></span><span>样本 <b>%d</b></span></div>%s<div class="sub">%s</div></div>' % (
-            "".join(cface(i) for i in c["units"]), pcls(c["place"]), c["place"], c["top4"] / c["count"] * 100,
-            c["win"] / c["count"] * 100, c["count"], ceyes(c), e("、".join(U(i)["name"] for i in c["units"]))) for c in top)
-    rid = {r["id"]: r for r in roster}
-    def ulist(items, fmt):
-        return "".join('<li>%s<span class="ln">%s</span><span class="lv">%s</span></li>' % (face(r, "sm"), e(r["name"]), fmt(s)) for r, s in items)
-    def is_lux(r):
-        return r["name"] == "拉克丝" or r["name"].startswith("拉克丝")
-    hid = [(rid[k], s) for k, s in us.items()
-           if k in rid and s["count"] >= 800 and s["count"] / total < 0.04 and not is_lux(rid[k])]
-    hid = sorted(hid, key=lambda x: x[1]["place"])[:8]
-    star = [(rid[k], s) for k, s in us.items() if k in rid and s.get("starCount", 0) >= 80]
-    star = sorted(star, key=lambda x: x[1]["place"] - x[1]["starPlace"], reverse=True)[:8]
-    tr = []
-    for zh, tid in ZH_TRAIT_TO_TID.items():
-        b = best_trait_perf(ts, tid, 200)
-        if b: tr.append((zh, b))
-    tr = sorted(tr, key=lambda x: x[1]["place"])[:6]
-    tr_html = "".join('<li><span class="tb">%s</span><span class="ln">%s %s 档 <small>%s</small></span><span class="lv %s">%.2f</span></li>' % (
-        "职业" if zh in CLASS_SET else "种族", e(zh), e(b["tier"]), "样本%d" % b["count"], pcls(b["place"]), b["place"]) for zh, b in tr)
-    insights = '''<section id="ins"><h2>洞察速览</h2><h3>🏆 本版本最强阵容 <small>样本≥200，按均名排序</small></h3><div class="grid comps">%s</div>
-<div class="grid three"><div class="box"><h3>💎 冷门高胜率</h3><p class="hint">选率&lt;4%%、样本≥800，按均名</p><ul class="lst">%s</ul></div>
-<div class="box"><h3>⭐ 三星价值</h3><p class="hint">均名 − 三星均名，越大越值得追三</p><ul class="lst">%s</ul></div>
-<div class="box"><h3>🔗 羁绊强度</h3><p class="hint">各羁绊最佳激活档（样本≥200）</p><ul class="lst">%s</ul></div></div></section>''' % (
-        comp_html,
-        ulist(hid, lambda s: '<b class="%s">%.2f</b><small>选率%.1f%%</small>' % (pcls(s["place"]), s["place"], s["count"] / total * 100)),
-        ulist(star, lambda s: '<b class="good">+%.2f</b><small>%.2f→%.2f</small>' % (s["place"] - s["starPlace"], s["place"], s["starPlace"])),
-        tr_html)
-    verdict = verdict_section(roster, ts, "origin")
     cls_html = matrix(meta, roster, "classes", CLASS_ORDER, us, total, "cls", "职业羁绊 × 站位")
     ori_html = matrix(meta, roster, "origins", ORIGIN_ORDER, us, total, "ori", "种族羁绊 × 站位")
-    ver_html = '<section id="ver"><h2>站位结论（种族）</h2><div class="verdict">%s</div></section>' % verdict
     links = '<section id="go"><h2>去哪看</h2><div class="grid three">' + "".join(
         '<a class="box golink" href="%s"><h3>%s</h3><p class="hint">%s</p></a>' % x for x in PAGES[1:]) + '</div></section>'
-    bodies = {"index.html": insights + links + "<script>var H={'#craft':'craft.html','#cls':'class.html','#ori':'origin.html','#ver':'origin.html#ver'};if(H[location.hash])location.replace(H[location.hash]);</script>", "class.html": cls_html, "origin.html": ori_html + ver_html, "synergy.html": "",
+    bodies = {"index.html": REMOVED + links + "<script>var H={'#craft':'craft.html','#cls':'class.html','#ori':'origin.html','#ver':'origin.html'};if(H[location.hash])location.replace(H[location.hash]);</script>", "class.html": cls_html, "origin.html": ori_html, "synergy.html": "",
               "craft.html": craft.section([tuple(c) for c in snap["craft"]["components"]], {tuple(r["pair"]): r for r in snap["craft"]["recipes"]})[0]}
     syn_mat, syn_pages = synergy.build(comps, roster, ORIGIN_ORDER, total, face, U, None)
     bodies["synergy.html"] = syn_mat
@@ -171,11 +119,15 @@ def render(snap, out):
             .replace("{{CRAFTCSS}}", craft.CSS + synergy.CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", title).replace("{{FILTERS}}", filt).replace("{{SEARCH}}", search).replace("{{BODY}}", bodies[fn])
         (out / fn).write_text(doc, encoding="utf-8")
         print("done →", out / fn, len(doc), "bytes")
-    print(len(roster), "champions;", len(top), "comps")
+    print(len(roster), "champions;", len(comps), "comps")
 
-PAGES = [("index.html", "首页 · 洞察", "最强阵容、冷门高胜率、三星价值、羁绊强度"),
+# 下线说明（2026-11-01）：最强阵容、冷门高胜率、三星价值、羁绊强度、站位结论、阵眼标签
+REMOVED = '''<section id="ins"><h2>说明</h2><div class="box"><p>首页的「最强阵容」「冷门高胜率」「三星价值」「羁绊强度」、种族页的「站位结论」和英雄卡上的「阵眼」标签已下线。</p>
+<p class="hint">它们只看对局结束时的最终棋盘：活得越久越容易凑出三星、满装、高费卡和高档羁绊，所以这些数字主要说明“这局本来就在赢”，不说明“照这样玩能赢”。阵容强度目前还无法从最终棋盘可靠测出，测出之前这里不放排行。</p></div></section>'''
+
+PAGES = [("index.html", "首页", "说明与各页入口"),
          ("class.html", "职业站位", "各职业羁绊的前/中/后排英雄与推荐出装"),
-         ("origin.html", "种族站位", "各种族羁绊的站位矩阵 + 站位结论"),
+         ("origin.html", "种族站位", "各种族羁绊的前/中/后排英雄与推荐出装"),
          ("synergy.html", "种族搭配", "种族 × 种族 胜率矩阵，点格子看所有英雄组合"),
          ("craft.html", "装备合成", "Set 18 散件合成表、纹章与冠冕")]
 FILTERS = r'''<div class="filters" id="filters">
@@ -214,13 +166,11 @@ nav input{margin-left:auto;background:var(--pn2);border:1px solid var(--bd);colo
 header{padding:40px 0 10px}header h1{margin:0;font-size:32px}header p{color:var(--mu);margin:6px 0}
 .pill{display:inline-block;background:var(--pn2);border:1px solid var(--bd);border-radius:99px;padding:2px 10px;margin-right:6px;font-size:12px}
 section{margin:36px 0}h2{font-size:22px;border-left:4px solid var(--ac);padding-left:10px;margin:0 0 16px}h3{font-size:16px;margin:18px 0 10px}h3 small,.hint{color:var(--mu);font-weight:400;font-size:12px;margin:0 0 8px}
-.grid{display:grid;gap:14px}.comps{grid-template-columns:repeat(auto-fill,minmax(360px,1fr))}.three{grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:18px}
-.cc,.box{background:var(--pn);border:1px solid var(--bd);border-radius:var(--r);padding:14px}
-.row{display:flex;flex-wrap:wrap;gap:4px}.kv{display:flex;gap:14px;margin-top:10px;font-size:13px;color:var(--mu)}.kv b{color:var(--tx)}.sub{color:var(--mu);font-size:12px;margin-top:6px}
+.grid{display:grid;gap:14px}.three{grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:18px}
+.box{background:var(--pn);border:1px solid var(--bd);border-radius:var(--r);padding:14px}
+.sub{color:var(--mu);font-size:12px;margin-top:6px}
 .av{display:inline-block;width:38px;height:38px;border-radius:8px;border:2px solid var(--c);overflow:hidden;background:#000}.av img{width:100%;height:100%;object-fit:cover}.av.sm{width:30px;height:30px}
-.lst{list-style:none;margin:0;padding:0}.lst li{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--bd)}.lst li:last-child{border:0}
-.ln{flex:1}.lv{text-align:right}.lv small{display:block;color:var(--mu);font-size:11px}.tb{font-size:11px;background:var(--pn2);border-radius:4px;padding:1px 6px;color:var(--mu)}
-.good,.kv .good b{color:var(--good)!important}.bad,.kv .bad b{color:var(--bad)!important}
+.good{color:var(--good)!important}.bad{color:var(--bad)!important}
 .legend{color:var(--mu);font-size:12px;margin:-6px 0 14px}
 .trow{display:grid;grid-template-columns:120px 1fr 1fr 1fr;gap:10px;background:var(--pn);border:1px solid var(--bd);border-radius:var(--r);padding:12px;margin-bottom:10px}
 .tn{font-weight:700;font-size:16px}.tn small{display:block;color:var(--mu);font-weight:400;font-size:12px}
@@ -229,18 +179,13 @@ section{margin:36px 0}h2{font-size:22px;border-left:4px solid var(--ac);padding-
 .ch{width:124px;background:var(--bg);border:1px solid var(--bd);border-top:3px solid var(--c);border-radius:10px;padding:6px;font-size:11px}
 .ph{position:relative}.ph img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;display:block}
 .ph em{position:absolute;top:4px;left:4px;background:var(--c);color:#000;font-style:normal;font-weight:800;border-radius:4px;padding:0 5px}
-.eyes{display:flex;flex-wrap:wrap;gap:3px;margin:3px 0}.eye{font-size:10px;font-weight:700;padding:1px 5px;border-radius:999px;border:1px solid;white-space:nowrap}
-.ey3{color:#ffd54a;border-color:#ffd54a;background:rgba(255,213,74,.12)}.eyi{color:#ff7a59;border-color:#ff7a59;background:rgba(255,122,89,.12)}
-.cf{position:relative;display:inline-block;margin-right:2px}.eb{position:absolute;bottom:-4px;font-size:8px;line-height:1;padding:1px 2px;border-radius:3px;border:1px solid;background:#111}.eb.ey3{left:-2px}.eb.eyi{right:-2px}
 .nm{font-weight:700;font-size:13px;margin-top:4px}.tg i{font-style:normal;display:inline-block;background:var(--pn2);color:var(--mu);border-radius:4px;padding:0 4px;margin:2px 2px 0 0}
 .st{color:var(--mu);margin:4px 0}.st span{font-weight:700}
 .bd{display:flex;align-items:center;gap:2px;margin-top:3px}.bd b{color:var(--ac);width:14px}.bd img{width:22px;height:22px;border-radius:3px}.bd span{margin-left:auto;color:var(--tx)}.bd.none{color:var(--mu)}
-.verdict{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}.verdict>*{background:var(--pn);border:1px solid var(--bd);border-radius:var(--r);padding:14px}
-.verdict img{max-width:40px}
 footer{color:var(--mu);border-top:1px solid var(--bd);padding:24px 0 60px;font-size:12px}code{background:var(--pn2);padding:1px 6px;border-radius:4px}
 .hide{display:none!important}
 {{CRAFTCSS}}
-@media(max-width:800px){nav .wrap{flex-wrap:wrap;height:auto;padding:8px 12px}nav input{width:100%;margin:0}.trow{grid-template-columns:1fr}.comps{grid-template-columns:1fr}.filters{padding:10px}}
+@media(max-width:800px){nav .wrap{flex-wrap:wrap;height:auto;padding:8px 12px}nav input{width:100%;margin:0}.trow{grid-template-columns:1fr}.filters{padding:10px}}
 </style></head><body>
 <nav><div class="wrap"><a class="lg" href="index.html">zmftft</a>{{NAV}}{{SEARCH}}</div></nav>
 <div class="wrap"><header><h1>{{TITLE}}</h1><p><span class="pill">Set 18 · patch {{PATCH}}</span><span class="pill">{{N}} 场样本</span><span class="pill">更新 {{DATE}}</span></p>

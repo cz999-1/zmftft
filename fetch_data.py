@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """抓取全部数据源，存成快照 data/<set>/<patch>.json；页面只从快照渲染 (stdlib only).
-用法: python3 fetch_data.py [--no-cache]
-原始响应缓存在 cache/raw/（已 gitignore，6 小时内复用）；快照只保留页面用到的字段。"""
+用法: python3 fetch_data.py [--no-cache | --offline]
+原始响应缓存在 cache/raw/（已 gitignore，6 小时内复用）；快照只保留页面用到的字段。
+--offline 不联网，用 cache/raw/ 里已有的原始响应（不论新旧）重建快照。"""
 import argparse, json, re, time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,15 +16,16 @@ MAX_AGE = 6 * 3600
 TOP_BUILDS = 3  # 每个英雄保留的二/三件装组合数（按 tactics.tools 原顺序）
 
 
-def cached(name, fn, refresh=False):
-    """读 cache/raw/<name>.json；没有、过期或 refresh 时调用 fn() 重新抓取并写回。"""
+def cached(name, fn, refresh=False, offline=False):
+    """读 cache/raw/<name>.json；没有、过期或 refresh 时调用 fn() 重新抓取并写回（offline 时从不抓取）。"""
     p = RAW / (name + ".json")
-    if not refresh and p.exists() and time.time() - p.stat().st_mtime < MAX_AGE:
-        return json.loads(p.read_text(encoding="utf-8"))
-    data = fn()
-    RAW.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-    return data
+    if offline:
+        if not p.exists():
+            raise SystemExit("--offline: 缺少 %s，先联网运行一次 python3 fetch_data.py" % p)
+    elif refresh or not p.exists() or time.time() - p.stat().st_mtime >= MAX_AGE:
+        RAW.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(fn(), ensure_ascii=False), encoding="utf-8")
+    return json.loads(p.read_text(encoding="utf-8"))
 
 
 def units_page():
@@ -35,14 +37,17 @@ def units_page():
     return {"pageProps": nd["props"]["pageProps"], "rank_label": m.group(1) if m else None, "patch_label": m.group(2) if m else None}
 
 
-def collect_raw(refresh=False):
-    """每个源只请求一次；返回原始响应（各取页面用到的那一层）。"""
-    raw = {"units": cached("tt_units_page", units_page, refresh)}
-    raw["builds"] = cached("tt_unit_builds", lambda: load_unit_builds(list(raw["units"]["pageProps"]["statsData"]["units"]), workers=12), refresh)
-    raw["groups"] = cached("tt_comps", lambda: fetch_next_data(TACTICS + "/zh/team-compositions")["props"]["pageProps"]["initialData"]["groups"], refresh)
-    raw["champs"] = cached("cd_champions", lambda: fetch_json(CDRAGON + "/zh_cn/v1/tftchampions.json"), refresh)
-    raw["items"] = cached("cd_items", lambda: fetch_json(CDRAGON + "/zh_cn/v1/tftitems.json"), refresh)
-    raw["cd_tft"] = cached("cd_tft", craft.fetch, refresh)
+def collect_raw(refresh=False, offline=False):
+    """每个源只请求一次；返回原始响应（各取页面用到的那一层）和最早一份的抓取时间。"""
+    get = lambda name, fn: cached(name, fn, refresh, offline)
+    raw = {"units": get("tt_units_page", units_page)}
+    raw["builds"] = get("tt_unit_builds", lambda: load_unit_builds(list(raw["units"]["pageProps"]["statsData"]["units"]), workers=12))
+    raw["groups"] = get("tt_comps", lambda: fetch_next_data(TACTICS + "/zh/team-compositions")["props"]["pageProps"]["initialData"]["groups"])
+    raw["champs"] = get("cd_champions", lambda: fetch_json(CDRAGON + "/zh_cn/v1/tftchampions.json"))
+    raw["items"] = get("cd_items", lambda: fetch_json(CDRAGON + "/zh_cn/v1/tftitems.json"))
+    raw["cd_tft"] = get("cd_tft", craft.fetch)
+    names = ("tt_units_page", "tt_unit_builds", "tt_comps", "cd_champions", "cd_items", "cd_tft")
+    raw["fetched_at"] = min((RAW / (n + ".json")).stat().st_mtime for n in names)
     return raw
 
 
@@ -64,7 +69,8 @@ def make_snapshot(raw):
     mk = detect_set_filter(champs)
     f = [c for c in champs if mk.lower() in ((c.get("character_record") or {}).get("squareIconPath") or "").lower()]
     if len(f) >= 20: champs = f
-    builds = {u: {k: (v[:TOP_BUILDS] if k in ("itemPairs", "itemTrios") else v) for k, v in b.items()} for u, b in raw["builds"].items()}
+    builds = {u: {"itemPairs": b["itemPairs"][:TOP_BUILDS], "itemTrios": b["itemTrios"][:TOP_BUILDS], "itemCountData": b["itemCountData"]}
+              for u, b in raw["builds"].items()}
     used = {i for b in builds.values() for k in ("itemPairs", "itemTrios") for x in b[k]
             for i in (x["items"] if isinstance(x["items"], list) else [x["items"]])}
     used = {k for i in used for k in (i, i.replace("DA_", ""), i.replace("DA_", "").replace("Artifact_", ""))}
@@ -77,11 +83,10 @@ def make_snapshot(raw):
         "meta": {"set": int(re.search(r"(\d+)$", mk).group(1)), "set_marker": mk, "patch":(ap.get("patch") or {}).get("_0", "?"), "patch_label": raw["units"]["patch_label"],
                  "rank_label": raw["units"]["rank_label"], "aperture": ap, "total": sd["totalEntries"],
                  "last_updated": datetime.fromtimestamp(sd["lastUpdated"], timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if sd.get("lastUpdated") else None,
-                 "fetched_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                 "fetched_at": datetime.fromtimestamp(raw["fetched_at"], timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                  "sources": {"tactics.tools": [TACTICS + "/zh/units", TACTICS + "/zh/units/<id>", TACTICS + "/zh/team-compositions"],
                              "community_dragon": [CDRAGON + "/zh_cn/v1/tftchampions.json", CDRAGON + "/zh_cn/v1/tftitems.json", craft.CD_JSON]}},
-        "unit_stats": sd["units"],
-        "trait_stats": sd.get("traits") or {},
+        "unit_stats": {u: {k: s.get(k) for k in ("count", "place", "top4")} for u, s in sd["units"].items()},
         "champions": [{"character_record": {k: (c.get("character_record") or {}).get(k) for k in ("character_id", "display_name", "squareIconPath", "traits")}} for c in champs],
         "items": [{k: it.get(k) for k in ("nameId", "name", "squareIconPath")} for it in raw["items"] if item_keys(it.get("nameId") or "") & used],
         "unit_builds": builds,
@@ -109,8 +114,9 @@ def load(path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-cache", action="store_true", help="忽略 cache/raw/ 重新抓取")
+    ap.add_argument("--offline", action="store_true", help="不联网，用 cache/raw/ 已有的原始响应重建快照")
     a = ap.parse_args()
-    p = save(make_snapshot(collect_raw(a.no_cache)))
+    p = save(make_snapshot(collect_raw(a.no_cache, a.offline)))
     print("snapshot →", p, p.stat().st_size, "bytes")
 
 

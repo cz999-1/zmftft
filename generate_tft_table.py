@@ -4,7 +4,7 @@
 Live data: tactics.tools + Community Dragon (zh_CN). Stdlib only.
 
   python3 generate_tft_table.py
-  python3 generate_tft_table.py --out out.html --verdict origin
+  python3 generate_tft_table.py --out out.html
 """
 from __future__ import annotations
 
@@ -26,24 +26,14 @@ CLASS_SET = {
     "魔战士", "斗士", "护卫", "裁决使", "猎人", "神谕", "主宰",
     "迅捷射手", "狂战士", "法师", "召唤师", "重装战士", "魔岩巨兽",
 }
-ASSASSIN_CLASSES = {"魔战士", "狂战士"}
-ASSASSIN_NAMES = {
-    "卡兹克", "雷恩加尔", "卡蜜尔", "阿卡丽", "沃里克",
-    "黛安娜", "易", "奈德丽", "暗影狼",
-}
 FRONT_CLASSES = {"斗士", "主宰", "护卫", "重装战士", "魔岩巨兽"}
 MID_CLASSES = {"魔战士", "狂战士"}
 BACK_CLASSES = {"法师", "迅捷射手", "神谕", "裁决使", "召唤师", "猎人"}
 COST_COLORS = {1: "#9aa4af", 2: "#11b288", 3: "#207ac7", 4: "#c440c4", 5: "#ffb93b"}
-ORIGIN_SKIP_UNIQUES = {
-    "月华神女", "赏金猎人", "宝石骑士", "翠神", "远古树精", "荆棘之兴",
-    "自然之力！大元素使", "顶级掠食者", "日月双蚀", "帝王斑蝶",
-}
 POS_OVERRIDE = {'墨菲特': 'front', '约里克': 'front', '瑟提': 'front', '伊莉丝': 'front', '奥恩': 'front', '阿利斯塔': 'front', '赫卡里姆': 'front', '纳尔': 'front', '洛': 'front', '莉莉娅': 'front', '慎': 'front', '阿木木': 'front', '蔚': 'front', '蕾欧娜': 'front', '瑟庄妮': 'front', '峡谷迅捷蟹': 'front', '远古石甲虫': 'front', '绯红印记树怪': 'front', '苍蓝雕纹魔像': 'front', '远古巨龙': 'front', '可酷伯': 'front', '拉莫斯': 'front', '费德提克': 'front', '茂凯': 'front', '塔里克': 'front', '雷克塞': 'front', '沃里克': 'mid', '易': 'mid', '卡蜜尔': 'mid', '莫甘娜': 'mid', '阿卡丽': 'mid', '黛安娜': 'mid', '奈德丽': 'mid', '暗影狼': 'mid', '卡兹克': 'mid', '雷恩加尔': 'mid', '维迦': 'back', '阿兹尔': 'back', '卡尔玛': 'back', '芸阿娜': 'back', '阿狸': 'back', '艾希': 'back', '凯特琳': 'back', '卡西奥佩娅': 'back', '霞': 'back', '乐芙兰': 'back', '伊泽瑞尔': 'back', '崔丝塔娜': 'back', '韦鲁斯': 'back', '凯南': 'back', '厄斐琉斯': 'back', '拉露恩': 'back', '希维尔': 'back', '凯尔': 'back', '绯红树怪': 'back', '苍蓝哨戒': 'back', '魔沼蛙': 'back', '深红锋喙鸟': 'back', '提莫': 'back', '索拉卡': 'back', '克格莫': 'back', '拉克丝': 'back', '德莱文': 'back', '婕拉': 'back', '艾翁': 'back'}
 DEFAULT_COSTS = {'雷克塞': 1, '墨菲特': 4, '沃里克': 2, '维迦': 1, '阿兹尔': 3, '约里克': 1, '瑟提': 4, '易': 3, '卡尔玛': 1, '芸阿娜': 2, '阿狸': 4, '艾希': 5, '伊莉丝': 2, '卡蜜尔': 1, '莫甘娜': 4, '凯特琳': 2, '卡西奥佩娅': 3, '奥恩': 1, '阿利斯塔': 2, '赫卡里姆': 3, '纳尔': 5, '霞': 1, '乐芙兰': 2, '伊泽瑞尔': 4, '洛': 1, '莉莉娅': 4, '崔丝塔娜': 3, '慎': 2, '阿木木': 4, '阿卡丽': 1, '韦鲁斯': 1, '凯南': 5, '黛安娜': 3, '厄斐琉斯': 4, '拉露恩': 5, '蔚': 3, '奈德丽': 4, '希维尔': 4, '蕾欧娜': 1, '瑟庄妮': 2, '凯尔': 2, '峡谷迅捷蟹': 2, '远古石甲虫': 3, '绯红印记树怪': 4, '苍蓝雕纹魔像': 4, '远古巨龙': 5, '暗影狼': 2, '绯红树怪': 1, '苍蓝哨戒': 1, '魔沼蛙': 2, '深红锋喙鸟': 3, '卡兹克': 3, '雷恩加尔': 3, '可酷伯': 1, '拉莫斯': 3, '提莫': 2, '费德提克': 3, '索拉卡': 4, '克格莫': 3, '拉克丝': 5, '德莱文': 5, '艾翁': 5, '茂凯': 5, '塔里克': 5, '婕拉': 4}
 CLASS_ORDER = ["斗士","主宰","护卫","重装战士","魔岩巨兽","魔战士","狂战士","猎人","法师","迅捷射手","神谕","裁决使","召唤师","（无职业/特殊）"]
 ORIGIN_ORDER = ["黑荆棘","灵魂莲华","魔女","永恒之森","花仙子","地狱火","月蚀骑士","野兽之灵","日蚀骑士","峡谷野怪","宿敌","约德尔人和朋友","绝命花妖","帝王斑蝶","月华神女","赏金猎人","宝石骑士","翠神","远古树精","荆棘之兴","自然之力！大元素使","顶级掠食者"]
-ZH_TRAIT_TO_TID = {'斗士': 'DA_18_Brawler', '主宰': 'DA_Juggernaut18', '护卫': 'DA_18_Defender', '重装战士': 'DA_18_Vanguard', '魔岩巨兽': 'DA_18_Battlemage', '魔战士': 'DA_18_Adaptor', '狂战士': 'DA_18_Slayer', '猎人': 'DA_18_Hunter', '法师': 'DA_18_Spellweaver', '迅捷射手': 'DA_18_Rapidfire', '神谕': 'DA_18_Invoker', '裁决使': 'DA_18_Executioner', '召唤师': 'DA_18_Summoner', '黑荆棘': 'DA_18_Blackthorn', '灵魂莲华': 'DA_18_Blossom', '魔女': 'DA_18_Coven', '永恒之森': 'DA_18_Elderwood', '花仙子': 'DA_18_Fae', '地狱火': 'DA_18_Inferno', '月蚀骑士': 'DA_18_Lunar', '日蚀骑士': 'DA_18_Solar', '野兽之灵': 'DA_Primal18', '峡谷野怪': 'DA_Riftbeast18', '宿敌': 'DA_18_Rival', '约德尔人和朋友': 'DA_18_Sprykin', '绝命花妖': 'DA_FloraFatalis18', '帝王斑蝶': 'DA_18_Caustic'}
 
 
 def fetch(url, timeout=30):
@@ -143,36 +133,9 @@ def load_unit_builds(unit_ids, workers=12):
         print("warning: %d unit pages failed (e.g. %s)" % (len(errs), errs[0]))
     return out
 
-def best_trait_perf(traits_stats, tid_prefix, min_count=150):
-    best = None
-    for k, v in traits_stats.items():
-        if k.startswith(tid_prefix + "__") and v.get("count", 0) >= min_count:
-            if best is None or v["place"] < best["place"]:
-                best = {"tier": k.split("__")[-1], **v}
-    return best
-
-# ── 阵眼 (carry) tags, data-driven from tactics.tools unit pages ──
-# unitData.starLevelData: per-star stats; unitData.itemCountData: stats by # of finished items held.
-# winrate = tactics.tools "won" (% games 1st place).
-# 阵眼—三星: won(3★) − won(2★) ≥ EYE_STAR_PP  AND  3★ sample ≥ EYE_STAR_MIN
-#   (min sample filters 4/5-cost 3★ that are rare/luck-driven, keeps units comps actually reroll for)
-# 阵眼—装备: won(3 items) − won(0 items) ≥ EYE_ITEM_PP  AND  3-item sample ≥ EYE_ITEM_MIN
-# Base Lux (DA_Lux18_Base) excluded — it's a placeholder before picking a Lux form.
-EYE_STAR_PP, EYE_STAR_MIN = 6.0, 2000
-EYE_ITEM_PP, EYE_ITEM_MIN = 5.0, 3000
-EYE_EXCLUDE = {"DA_Lux18_Base"}
-
-def carry_tags(cid, builds):
-    if cid in EYE_EXCLUDE or not builds:
-        return []
-    s = {d.get("id"): d for d in builds.get("starLevelData") or []}
-    c = {d.get("id"): d for d in builds.get("itemCountData") or []}
-    tags = []
-    if 3 in s and 2 in s and s[3].get("count", 0) >= EYE_STAR_MIN and s[3]["won"] - s[2]["won"] >= EYE_STAR_PP:
-        tags.append(("star", round(s[3]["won"] - s[2]["won"], 1)))
-    if 3 in c and 0 in c and c[3].get("count", 0) >= EYE_ITEM_MIN and c[3]["won"] - c[0]["won"] >= EYE_ITEM_PP:
-        tags.append(("item", round(c[3]["won"] - c[0]["won"], 1)))
-    return tags
+# Removed (2026-11-01, docs in README): best_trait_perf (羁绊强度 = minimum of noisy tier averages),
+# carry_tags (阵眼 = 3★/3-item 1st-place lift) and the 站位结论 verdict. All three read final-board
+# results that need a long game to reach, so they show who was already winning, not what wins.
 
 def build_roster(champs_zh, unit_builds, costs):
     roster = []
@@ -193,15 +156,12 @@ def build_roster(champs_zh, unit_builds, costs):
         builds = unit_builds.get(cid) or {}
         pairs = builds.get("itemPairs") or []
         trios = builds.get("itemTrios") or []
-        assassin = any(t in ASSASSIN_CLASSES for t in classes) or name in ASSASSIN_NAMES
         roster.append({
             "id": cid, "name": name, "cost": cost, "pos": pos,
             "classes": classes, "origins": origins, "traits": traits,
             "icon": cdragon_asset_url(path),
             "top2": pairs[0] if pairs else None,
             "top3": trios[0] if trios else None,
-            "assassin": assassin,
-            "eye": carry_tags(cid, builds),
         })
     return roster
 
@@ -273,94 +233,6 @@ def table_rows(meta, grouped, order):
             htmlmod.escape(name), render_cell(meta, g["front"]), render_cell(meta, g["mid"]), render_cell(meta, g["back"])))
     return "".join(rows)
 
-def verdict_section(roster, traits_stats, mode):
-    stats = defaultdict(lambda: {"front": [], "mid": [], "back": [], "assassins": [], "all": []})
-    for r in roster:
-        tags = r["origins"] if mode == "origin" else r["classes"]
-        for t in tags:
-            if mode == "origin" and t in ORIGIN_SKIP_UNIQUES:
-                continue
-            stats[t]["all"].append(r)
-            stats[t][r["pos"]].append(r)
-            if r["assassin"]:
-                stats[t]["assassins"].append(r)
-
-    def perf(t):
-        tid = ZH_TRAIT_TO_TID.get(t)
-        return best_trait_perf(traits_stats, tid) if tid else None
-
-    def front_score(t, d):
-        fronts = d["front"]
-        if not fronts:
-            return -1
-        return len(fronts) * 2.2 + sum(x["cost"] or 0 for x in fronts) / len(fronts) + sum(1 for x in fronts if (x["cost"] or 0) >= 4) * 1.8
-
-    def asa_score(t, d):
-        asas = d["assassins"]; total = len(d["all"]) or 1
-        if not asas:
-            return -1
-        return len(asas) * 3.5 + (len(asas) / total) * 8 + sum(1 for x in d["mid"] if x["assassin"]) * 2
-
-    def back_score(t, d):
-        backs = d["back"]
-        if not backs:
-            return -1
-        avg = sum(x["cost"] or 0 for x in backs) / len(backs)
-        premium = sum(1 for x in backs if (x["cost"] or 0) >= 4)
-        carries = sum(1 for x in backs if (x["cost"] or 0) >= 3)
-        base = len(backs) * 1.2 + avg + carries * 1.2 + premium * 2.2
-        p = perf(t)
-        if p:
-            base += (5.0 - p["place"]) * 3.5 + p["top4"] / 40
-        return base
-
-    def rank(fn):
-        out = []
-        for t, d in stats.items():
-            if len(d["all"]) < 2:
-                continue
-            s = fn(t, d)
-            if s >= 0:
-                out.append((s, t, d))
-        out.sort(key=lambda x: -x[0])
-        return out
-
-    def detail(t, d, kind):
-        p = perf(t)
-        ps = (" · 激活%s时均名%.2f/前四%.0f%%" % (p["tier"], p["place"], p["top4"])) if p else ""
-        if kind == "front":
-            names = "、".join(x["name"] for x in sorted(d["front"], key=lambda x: (-(x["cost"] or 0), x["name"])))
-            return "前排%d人：%s%s" % (len(d["front"]), names, ps)
-        if kind == "asa":
-            names = "、".join(x["name"] for x in sorted(d["assassins"], key=lambda x: (-(x["cost"] or 0), x["name"])))
-            return "刺客向%d人：%s%s" % (len(d["assassins"]), names, ps)
-        names = "、".join(x["name"] for x in sorted(d["back"], key=lambda x: (-(x["cost"] or 0), x["name"])))
-        return "后排%d人：%s%s" % (len(d["back"]), names, ps)
-
-    fr, ar, br = rank(front_score), rank(asa_score), rank(back_score)
-    if not (fr and ar and br):
-        return '<p class="note">站位结论数据不足，跳过。</p>'
-    def pick(ranked):
-        return ranked[0], ranked[1], ranked[2] if len(ranked) > 2 else ranked[1]
-    f1, f2, f3 = pick(fr); a1, a2, a3 = pick(ar); b1, b2, b3 = pick(br)
-    label = "种族羁绊" if mode == "origin" else "职业羁绊"
-    return """
-<section class="verdict">
-<h2>一句话站位结论（%s）</h2>
-<div class="cards">
-  <div class="card thick"><div class="k">前排最厚</div><div class="v">%s</div><div class="d">%s</div><div class="alt">亚军 %s · 季军 %s</div></div>
-  <div class="card dense"><div class="k">刺客最密</div><div class="v">%s</div><div class="d">%s</div><div class="alt">亚军 %s · 季军 %s</div></div>
-  <div class="card fierce"><div class="k">后排最猛</div><div class="v">%s</div><div class="d">%s</div><div class="alt">亚军 %s · 季军 %s</div></div>
-</div>
-<p class="note">「厚」看前排人数与高费坦克；「密」看刺客向单位密度；「猛」看后排高费输出并结合 tactics.tools 样本均名/前四率。</p>
-</section>
-""" % (
-        htmlmod.escape(label),
-        htmlmod.escape(f1[1]), htmlmod.escape(detail(f1[1], f1[2], "front")), htmlmod.escape(f2[1]), htmlmod.escape(f3[1]),
-        htmlmod.escape(a1[1]), htmlmod.escape(detail(a1[1], a1[2], "asa")), htmlmod.escape(a2[1]), htmlmod.escape(a3[1]),
-        htmlmod.escape(b1[1]), htmlmod.escape(detail(b1[1], b1[2], "back")), htmlmod.escape(b2[1]), htmlmod.escape(b3[1]),
-    )
-
 CSS = """
 :root { --bg:#0f1419; --card:#1a222c; --text:#e8eef4; --muted:#9aa4af; --line:#2a3542; }
 * { box-sizing:border-box; }
@@ -384,19 +256,9 @@ th, td { border:1px solid var(--line); vertical-align:top; padding:10px; } th { 
 .legend { display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 16px; font-size:12px; color:var(--muted); }
 .dot { width:14px; height:14px; border-radius:3px; display:inline-block; }
 .note { font-size:12px; color:var(--muted); margin-top:8px; }
-.verdict { margin-top: 32px; }
-.verdict .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
-.verdict .card { background:#121820; border:1px solid var(--line); border-radius:12px; padding:16px; }
-.verdict .k { font-size:12px; color:var(--muted); margin-bottom:6px; }
-.verdict .v { font-size:26px; font-weight:700; margin-bottom:8px; }
-.verdict .d { font-size:13px; line-height:1.45; color:#c5d0db; }
-.verdict .alt { margin-top:10px; font-size:12px; color:var(--muted); }
-.verdict .thick { border-top:3px solid #5b8def; }
-.verdict .dense { border-top:3px solid #c440c4; }
-.verdict .fierce { border-top:3px solid #ffb93b; }
 """
 
-def render_html(roster, item_meta, traits_stats, patch_label, verdict):
+def render_html(roster, item_meta, patch_label):
     by_class = group_by(roster, "classes")
     by_origin = group_by(roster, "origins")
     return """<!DOCTYPE html>
@@ -428,7 +290,6 @@ def render_html(roster, item_meta, traits_stats, patch_label, verdict):
 <thead><tr><th>种族羁绊</th><th>前排</th><th>中排</th><th>后排</th></tr></thead>
 <tbody>%s</tbody>
 </table>
-%s
 <p class="sub" style="margin-top:20px">由 generate_tft_table.py 自动生成。换版本后重新运行即可刷新。</p>
 </body>
 </html>
@@ -436,7 +297,6 @@ def render_html(roster, item_meta, traits_stats, patch_label, verdict):
         htmlmod.escape(patch_label), CSS, htmlmod.escape(patch_label),
         table_rows(item_meta, by_class, CLASS_ORDER),
         table_rows(item_meta, by_origin, ORIGIN_ORDER),
-        verdict_section(roster, traits_stats, verdict),
     )
 
 def detect_set_filter(champs_zh):
@@ -451,7 +311,6 @@ def detect_set_filter(champs_zh):
 def main():
     ap = argparse.ArgumentParser(description="Generate TFT Chinese trait x position HTML table")
     ap.add_argument("--out", default="tft-traits-items.html")
-    ap.add_argument("--verdict", choices=("origin", "class"), default="origin")
     ap.add_argument("--costs", help="optional JSON map Chinese name -> cost")
     ap.add_argument("--workers", type=int, default=12)
     ap.add_argument("--set", dest="set_marker", default="")
@@ -465,8 +324,7 @@ def main():
     units_pp = fetch_next_data(TACTICS + "/zh/units")["props"]["pageProps"]
     stats_data = units_pp["statsData"]
     unit_ids = list(stats_data["units"].keys())
-    traits_stats = stats_data.get("traits") or {}
-    patch = (units_pp.get("aperture") or {}).get("patch") or {}
+    patch =(units_pp.get("aperture") or {}).get("patch") or {}
     patch_label = "tactics.tools patch=%s · %d units" % (patch.get("_0", "?"), len(unit_ids))
 
     print("2/5 fetching Community Dragon zh champions + items…")
@@ -495,7 +353,7 @@ def main():
         print("   tip: pass --costs costs.json")
 
     print("5/5 writing HTML…")
-    doc = render_html(roster, item_meta, traits_stats, patch_label, args.verdict)
+    doc = render_html(roster, item_meta, patch_label)
     out = Path(args.out)
     out.write_text(doc, encoding="utf-8")
     print("done → %s (%d bytes, %d champions)" % (out.resolve(), out.stat().st_size, len(roster)))
