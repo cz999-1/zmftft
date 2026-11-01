@@ -2,7 +2,7 @@
 
 The tests use a made-up snapshot (tests/fixture.py); the real one is not in the repository. When a real
 snapshot exists in cache/snapshots/, it is checked too."""
-import contextlib, copy, io, json, sys, tempfile, unittest
+import contextlib, copy, io, json, re, sys, tempfile, unittest
 from pathlib import Path
 from unittest import mock
 
@@ -47,6 +47,13 @@ class Site(unittest.TestCase):
             for page in ("class.html", "origin.html"):  # cards: 选率 and 满装率, no 均名 / 前四 (owner, 2026-11-01)
                 self.assertIn("满装率", pages[page]); self.assertIn("选率", pages[page])
                 self.assertNotIn("均名", pages[page]); self.assertNotIn("前四", pages[page])
+                # item icons carry their recipe data (owner, 2026-11-01): one entry per item shown, all components
+                tips = json.loads(re.search(r'<script type="application/json" id="itd">(.*?)</script>', pages[page], re.S).group(1))
+                shown = set(re.findall(r'data-it="([^"]+)"', pages[page]))
+                self.assertTrue(shown); self.assertEqual(set(tips["i"]), shown)
+                self.assertEqual(sorted(tips["c"]), sorted(c for c, _, _ in self.snap["craft"]["components"]))
+            for page in ("index.html", "synergy.html", "craft.html"):
+                self.assertNotIn('id="itd"', pages[page])
             allpages = list(pages.values()) + [p.read_text(encoding="utf-8") for p in Path(d, "synergy").glob("*.html")]
             self.assertFalse([h for h in allpages if "communitydragon.org/latest/" in h])
             import html
@@ -54,6 +61,25 @@ class Site(unittest.TestCase):
             self.assertTrue(all(html.escape(build_site.RIOT_BOILERPLATE) in h for h in allpages))  # and the API boilerplate
             self.assertFalse([h for h in allpages if "build_site.py" in h])  # build commands live in the README
             self.assertTrue(all("communitydragon.org/16.21/" in h for h in allpages if "<img" in h))
+
+    def test_item_tips_find_recipes_by_key_then_by_name(self):
+        craft = copy.deepcopy(self.snap["craft"])
+        craft["recipes"] += [
+            {"api": "TFT_Item_Fixture0", "name": "旧名", "icon": "", "desc": "按 id", "emblem": False, "pair": ["Part0", "Part1"]},
+            {"api": "TFT_Item_OlderApiName", "name": "测试装备1", "icon": "", "desc": "按名称", "emblem": False, "pair": ["Part2", "Part3"]}]
+        meta = build_site.build_item_meta(self.snap["items"], "16.21")
+        tips = build_site.item_tips(meta, craft, ["TFT_Item_Fixture0", "DA_Fixture1", "TFT_Item_Fixture2", "DA_Artifact_Fixture"])
+        self.assertEqual(tips["TFT_Item_Fixture0"], ["Part0", "Part1", "按 id"])
+        self.assertEqual(tips["DA_Fixture1"], ["Part2", "Part3", "按名称"])  # renamed item: tactics.tools id, Riot's older api name
+        self.assertEqual(tips["TFT_Item_Fixture2"], [""])
+        self.assertEqual(tips["DA_Artifact_Fixture"], ["神器"])
+        craft["recipes"].append(dict(craft["recipes"][-1], api="TFT_Item_Twin"))  # two recipes with one name: neither matches
+        self.assertEqual(build_site.item_tips(meta, craft, ["DA_Fixture1"])["DA_Fixture1"], [""])
+
+    def test_tooltip_effect_text_drops_leftover_tokens(self):
+        self.assertEqual(build_site.tidy("获得【技能暴击】。 {{TFT_Keyword_Precision}}"), "获得【技能暴击】。")
+        self.assertEqual(build_site.tidy("提供相当于20%造成伤害值的治疗。 友军治疗："), "提供相当于20%造成伤害值的治疗。")
+        self.assertEqual(build_site.tidy("每场战斗仅触发1次：在40%生命值时获得护盾。"), "每场战斗仅触发1次：在40%生命值时获得护盾。")
 
     def check_catches(self, mutate, needle):
         snap, manual = copy.deepcopy(self.snap), copy.deepcopy(self.manual)

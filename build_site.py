@@ -3,10 +3,10 @@
 用法: python3 build_site.py [--out .] [--no-cache] [--data cache/snapshots/set<N>/<patch>.json]
 先抓取并存快照（fetch_data.py，存在不入库的 cache/），页面只从快照渲染；--data 只渲染、不联网。
 依赖同目录 generate_tft_table.py 中的映射与工具函数。"""
-import argparse, html as H
-from collections import defaultdict
+import argparse, html as H, json, re
+from collections import Counter, defaultdict
 from pathlib import Path
-from generate_tft_table import (COST_COLORS, build_item_meta, item_cn, item_icon, build_roster, cdragon_asset_url,
+from generate_tft_table import (COST_COLORS, build_item_meta, item_cn, item_icon, item_keys, build_roster, cdragon_asset_url,
     load_manual, row_orders, NO_CLASS)
 
 import craft, synergy, fetch_data, checks
@@ -17,13 +17,42 @@ def face(u, size=""):
     return ('<span class="av %s" style="--c:%s" title="%s"><img src="%s" alt="%s" loading="lazy" '
             'onerror="this.style.opacity=.2"></span>') % (size, col, e(u["name"]), e(u["icon"]), e(u["name"]))
 
+def build_ids(b):
+    return b["items"] if isinstance(b["items"], list) else [b["items"]]
+
 def build_html(meta, b, label):
     if not b:
         return '<div class="bd none"><b>%s</b>—</div>' % label
-    ids = b["items"] if isinstance(b["items"], list) else [b["items"]]
-    icons = "".join('<img src="%s" title="%s" alt="%s" loading="lazy">' % (e(item_icon(meta, i)), e(item_cn(meta, i)), e(item_cn(meta, i))) for i in ids)
+    ids = build_ids(b)
+    icons = "".join('<img src="%s" title="%s" alt="%s" data-it="%s" loading="lazy">' % (
+        e(item_icon(meta, i)), e(item_cn(meta, i)), e(item_cn(meta, i)), e(i)) for i in ids)
     return '<div class="bd" title="%s · 吃鸡率 %.1f%%（全体基线 12.5%%）· %d 场"><b>%s</b>%s<span>%.0f%%</span></div>' % (
         e(" + ".join(item_cn(meta, i) for i in ids)), b.get("won") or 0, b.get("count") or 0, label, icons, b.get("won") or 0)
+
+def item_tips(meta, craft_snap, ids):
+    """Hover data for item icons: id -> [component, component, effect] for an item made from two components, else
+    [kind] ("神器", "光明装备", "纹章" or ""). The recipe is found by the item's key, else by its Chinese name:
+    tactics.tools uses current ids (DA_EdgeOfNight) where the recipe table keeps Riot's older api names
+    (TFT_Item_GuardianAngel). A name shared by two recipes matches neither."""
+    recipes = craft_snap["recipes"]
+    by_key = {}
+    for r in recipes:
+        for k in item_keys(r["api"]):
+            by_key.setdefault(k, r)
+    names = Counter(r["name"] for r in recipes)
+    by_name = {r["name"]: r for r in recipes if names[r["name"]] == 1}
+    out = {}
+    for i in ids:
+        r = by_key.get(i) or by_key.get(i.replace("DA_", "")) or by_name.get(item_cn(meta, i))
+        out[i] = list(r["pair"]) + [tidy(r["desc"])] if r else [
+            "神器" if "Artifact" in i else "光明装备" if "Radiant" in i else "纹章" if "Emblem" in i else ""]
+    return out
+
+def tidy(desc):
+    """An effect text from the snapshot (craft.blurb) can keep a {{keyword}} token, or end in a label whose value
+    was a game variable ("…的治疗。 友军治疗："); the tooltip drops both."""
+    d = re.sub(r"\s*\{\{[^}]*\}\}", "", desc).strip()
+    return re.sub(r"\s*[^\s。：]*：$", "", d)
 
 def card(meta, r, us, total):
     s = us.get(r["id"]) or {}
@@ -68,7 +97,7 @@ def matrix(meta, roster, key, order, us, total, sid, title):
         sub = ('<small>%s</small>' % e("、".join(solo))) if n == "单一英雄种族" else ""
         rows.append(('<div class="trow"><div class="tn">%s<small>%d 名英雄</small>' + sub + '</div>%s</div>') % (
             e(n), len({r["id"] for p in g[n].values() for r in p}), "".join(cols)))
-    return '<section id="%s"><h2>%s</h2><div class="legend">前排 / 中排 / 后排为本站人工标注 · 选率 = 出现该英雄的最终棋盘占全部棋盘的比例 · 满装率 = 该英雄在场的棋盘里拿着 3 件成装的比例：玩家把装备给谁，不说明给它装备更能赢 · 二/三件装为该英雄出场最多的组合，百分比为吃鸡率（第 1 名比例，全体基线 12.5%%），场次见悬停提示</div>%s</section>' % (sid, title, "".join(rows))
+    return '<section id="%s"><h2>%s</h2><div class="legend">前排 / 中排 / 后排为本站人工标注 · 选率 = 出现该英雄的最终棋盘占全部棋盘的比例 · 满装率 = 该英雄在场的棋盘里拿着 3 件成装的比例：玩家把装备给谁，不说明给它装备更能赢 · 二/三件装为该英雄出场最多的组合，百分比为吃鸡率（第 1 名比例，全体基线 12.5%%），场次见悬停提示 · 悬停（手机上点按）装备图标看合成配方</div>%s</section>' % (sid, title, "".join(rows))
 
 def main():
     ap = argparse.ArgumentParser()
@@ -116,17 +145,23 @@ def render(snap, out):
                  ("{{SCOPE}}", ("排位 · %s" % m["rank_label"] if m["rank_label"] else "分段未注明") + " · 地区未注明"),
                  ("{{N}}", "{:,}".format(total)), ("{{DATE}}", (m["last_updated"] or m["fetched_at"]).replace("T", " ")[:16] + " UTC")):
         tpl = tpl.replace(k, e(v))
+    # pages with item icons get the recipe tooltip: its data (only the items shown) and its CSS/JS; other pages stay as they were
+    tip_ids = sorted({i for r in roster for b in (r["top2"], r["top3"]) if b for i in build_ids(b)})
+    tips = {"c": {c: [n, i] for c, n, i in snap["craft"]["components"]}, "i": item_tips(meta, snap["craft"], tip_ids)}
+    tips_json = json.dumps(tips, ensure_ascii=False, sort_keys=True, separators=(",", ":")).replace("</", "<\\/")
+    tpl_items = tpl.replace("{{TIPCSS}}", TIP_CSS).replace("{{ITEMTIPS}}", '<script type="application/json" id="itd">%s</script>%s' % (tips_json, TIP_JS))
+    tpl_plain = tpl.replace("{{TIPCSS}}", "").replace("{{ITEMTIPS}}", "")
     out.mkdir(parents=True, exist_ok=True); (out / "synergy").mkdir(exist_ok=True)
     for old in (out / "synergy").glob("*.html"): old.unlink()
     for fn, (t, body) in syn_pages.items():
         nav = "".join('<a href="../%s"%s>%s</a>' % (f, ' class="cur"' if f == "synergy.html" else "", tt) for f, tt, _ in PAGES)
-        doc = tpl.replace("{{CRAFTCSS}}", craft.CSS + synergy.CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", t).replace("{{FILTERS}}", "").replace("{{SEARCH}}", "").replace("{{BODY}}", body).replace('href="index.html"', 'href="../index.html"')
+        doc = (tpl_items if 'data-it="' in body else tpl_plain).replace("{{CRAFTCSS}}", craft.CSS + synergy.CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", t).replace("{{FILTERS}}", "").replace("{{SEARCH}}", "").replace("{{BODY}}", body).replace('href="index.html"', 'href="../index.html"')
         (out / fn).write_text(doc, encoding="utf-8")
     for fn, title, _ in PAGES:
         nav = "".join('<a href="%s"%s>%s</a>' % (f, ' class="cur"' if f == fn else "", t) for f, t, _ in PAGES)
         filt = FILTERS if fn in ("class.html", "origin.html") else ""
         search = SEARCH if filt else ""
-        doc = tpl.replace("{{CRAFTCSS}}", craft.CSS + synergy.CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", title).replace("{{FILTERS}}", filt).replace("{{SEARCH}}", search).replace("{{BODY}}", bodies[fn])
+        doc = (tpl_items if 'data-it="' in bodies[fn] else tpl_plain).replace("{{CRAFTCSS}}", craft.CSS + synergy.CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", title).replace("{{FILTERS}}", filt).replace("{{SEARCH}}", search).replace("{{BODY}}", bodies[fn])
         (out / fn).write_text(doc, encoding="utf-8")
         print("done →", out / fn, len(doc), "bytes")
     print(len(roster), "champions;", len(comps), "comps")
@@ -169,6 +204,39 @@ FILTERS = r'''<div class="filters" id="filters">
 '''
 SEARCH = '<input id="q" placeholder="搜索英雄 / 羁绊…">'
 
+# 装备图标的合成配方提示（只在有装备图标的页面上）
+TIP_CSS = """.bd img[data-it]{cursor:help}
+.tip{position:fixed;z-index:30;display:none;max-width:260px;background:var(--pn);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.55);font-size:12px;line-height:1.5;pointer-events:none}
+.tip .tt{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700}.tip .tt img{width:32px;height:32px;border-radius:6px}
+.tip .rc{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-top:8px}.tip .rc img{width:22px;height:22px;border-radius:4px}.tip .rc i{font-style:normal;color:var(--mu);margin:0 2px}
+.tip p{margin:6px 0 0;color:var(--mu)}"""
+TIP_JS = r'''<script>
+(function(){
+  // 悬停（手机上点按）装备图标显示合成配方。数据在 #itd：c = 散件 id -> [名称, 图标]，i = 装备 id -> [散件, 散件, 效果] 或 [类别]
+  var D=JSON.parse(document.getElementById('itd').textContent), C=D.c, I=D.i, cur=null, touch=false;
+  var tip=document.createElement('div'); tip.className='tip'; tip.setAttribute('role','tooltip'); document.body.appendChild(tip);
+  function esc(s){ return String(s).replace(/[&<>"]/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }); }
+  function part(c){ var p=C[c]||[c,'']; return '<img src="'+esc(p[1])+'" alt="">'+esc(p[0]); }
+  function show(img){
+    var x=I[img.dataset.it]||[''], h='<div class="tt"><img src="'+esc(img.src)+'" alt="">'+esc(img.alt)+'</div>';
+    h+=x.length>1 ? '<div class="rc">'+part(x[0])+'<i>+</i>'+part(x[1])+'</div>'+(x[2] ? '<p>'+esc(x[2])+'</p>' : '')
+                  : '<p>'+(x[0] ? esc(x[0])+' · ' : '')+'不能用散件合成</p>';
+    tip.innerHTML=h; tip.style.display='block'; cur=img;
+    var r=img.getBoundingClientRect(), w=tip.offsetWidth, ht=tip.offsetHeight, top=r.bottom+8;
+    if(top+ht>innerHeight-8) top=Math.max(8, r.top-ht-8);
+    tip.style.left=Math.max(8, Math.min(r.left+r.width/2-w/2, innerWidth-w-8))+'px'; tip.style.top=top+'px';
+  }
+  function hide(){ tip.style.display='none'; cur=null; }
+  function hit(ev){ return ev.target.closest ? ev.target.closest('img[data-it]') : null; }
+  document.querySelectorAll('img[data-it]').forEach(function(i){ i.title=''; });  // 原生提示只在脚本不运行时出现
+  document.addEventListener('pointerdown', function(ev){ touch=ev.pointerType!=='mouse'; }, true);
+  document.addEventListener('pointerover', function(ev){ var i=hit(ev); if(i && ev.pointerType==='mouse') show(i); });
+  document.addEventListener('pointerout', function(ev){ if(ev.pointerType==='mouse' && hit(ev)) hide(); });
+  document.addEventListener('click', function(ev){ if(!touch) return; var i=hit(ev); if(i && i!==cur) show(i); else hide(); });
+  addEventListener('scroll', hide, {passive:true}); addEventListener('resize', hide);
+})();
+</script>'''
+
 TPL = r'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{{TITLE}} · 云顶攻略台 zmftft</title><style>
 :root{--bg:#0e1116;--pn:#161b22;--pn2:#1c232d;--bd:#2a323d;--tx:#e6edf3;--mu:#8b98a8;--ac:#f0b429;--good:#3fb950;--bad:#e5737a;--r:12px}
@@ -203,7 +271,7 @@ section{margin:36px 0}h2{font-size:22px;border-left:4px solid var(--ac);padding-
 .bd{display:flex;align-items:center;gap:2px;margin-top:3px}.bd b{color:var(--ac);width:14px}.bd img{width:22px;height:22px;border-radius:3px}.bd span{margin-left:auto;color:var(--tx)}.bd.none{color:var(--mu)}
 footer{color:var(--mu);border-top:1px solid var(--bd);padding:24px 0 60px;font-size:12px}code{background:var(--pn2);padding:1px 6px;border-radius:4px}
 .hide{display:none!important}
-{{CRAFTCSS}}
+{{CRAFTCSS}}{{TIPCSS}}
 @media(max-width:800px){nav .wrap{flex-wrap:wrap;height:auto;padding:8px 12px}nav input{width:100%;margin:0}.trow{grid-template-columns:1fr}.filters{padding:10px}}
 </style></head><body>
 <nav><div class="wrap"><a class="lg" href="index.html">zmftft</a>{{NAV}}{{SEARCH}}</div></nav>
@@ -240,7 +308,7 @@ footer{color:var(--mu);border-top:1px solid var(--bd);padding:24px 0 60px;font-s
     apply();
   });
 })();
-</script></body></html>'''
+</script>{{ITEMTIPS}}</body></html>'''
 
 if __name__ == "__main__":
     main()
