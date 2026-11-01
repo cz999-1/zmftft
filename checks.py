@@ -1,5 +1,5 @@
 """构建护栏：快照和人工标注不通过就不生成页面、不存快照 (stdlib only).
-用法: python3 checks.py [data/set18/18.5c.json]             # 单独检查一个快照
+用法: python3 checks.py [cache/snapshots/set18/18.5c.json]  # 单独检查一个快照（默认最新的）
       python3 checks.py --skeleton cache/failed_snapshot.json  # 新赛季：生成 sets/set<N>.json 草稿
 build_site.py 每次构建前都会调用 check()。"""
 import json, sys
@@ -123,7 +123,10 @@ def main():
         p.write_text(dump_manual(skeleton(snap)), encoding="utf-8", newline="\n")
         print("草稿 →", p, "（填站位、把 untyped 里的羁绊分到 classes / origins，见 README 的 Set 迁移清单）")
         return 0
-    path = sys.argv[1] if len(sys.argv) > 1 else sorted(Path(__file__).resolve().parent.glob("data/set*/*.json"))[-1]
+    found = sorted(Path(__file__).resolve().parent.glob("cache/snapshots/set*/*.json"), key=lambda p: p.stat().st_mtime)
+    if len(sys.argv) < 2 and not found:
+        raise SystemExit("cache/snapshots/ 下没有快照：先运行 python3 fetch_data.py")
+    path = sys.argv[1] if len(sys.argv) > 1 else found[-1]
     problems = check(json.loads(Path(path).read_text(encoding="utf-8")))
     print("\n".join(problems) or "%s：通过" % path)
     return 1 if problems else 0

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """云顶攻略台 · zmftft — 生成站点页面 (stdlib only).
-用法: python3 build_site.py [--out .] [--no-cache] [--data data/<set>/<patch>.json]
-先抓取并存快照（fetch_data.py），页面只从快照渲染；--data 只渲染、不联网。
+用法: python3 build_site.py [--out .] [--no-cache] [--data cache/snapshots/set<N>/<patch>.json]
+先抓取并存快照（fetch_data.py，存在不入库的 cache/），页面只从快照渲染；--data 只渲染、不联网。
 依赖同目录 generate_tft_table.py 中的映射与工具函数。"""
 import argparse, html as H
 from collections import defaultdict
@@ -75,7 +75,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=".", help="输出目录")
     ap.add_argument("--no-cache", action="store_true", help="忽略 cache/raw/ 重新抓取")
-    ap.add_argument("--data", help="只用这个快照渲染、不联网，例如 data/set18/18.5c.json")
+    ap.add_argument("--data", help="只用这个快照渲染、不联网，例如 cache/snapshots/set18/18.5c.json")
     a = ap.parse_args()
     if a.data:
         path = Path(a.data)
@@ -84,6 +84,7 @@ def main():
         path = fetch_data.save(fetch_data.make_snapshot(fetch_data.collect_raw(a.no_cache)))
         print("snapshot →", path)
     render(fetch_data.load(path), Path(a.out))
+    print("snapshot sha256", fetch_data.sha256(path), "（README「页面数据快照」里记的应是这个值）")
 
 def render(snap, out):
     """页面只读快照，不联网。"""

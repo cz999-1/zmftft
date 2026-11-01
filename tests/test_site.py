@@ -1,26 +1,37 @@
-"""python3 -m unittest discover -s tests   (stdlib only, no network)"""
+"""python3 -m unittest discover -s tests   (stdlib only, no network)
+
+The tests use a made-up snapshot (tests/fixture.py); the real one is not in the repository. When a real
+snapshot exists in cache/snapshots/, it is checked too."""
 import copy, json, sys, tempfile, unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-import build_site, checks, fetch_data
+sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(Path(__file__).resolve().parent))
+import build_site, checks, fetch_data, fixture
 from generate_tft_table import load_manual
 
-SNAP = sorted(ROOT.glob("data/set*/*.json"))[-1]
+MANUAL = sorted((ROOT / "sets").glob("set*.json"))[-1]
+LOCAL = sorted((ROOT / "cache" / "snapshots").glob("set*/*.json"), key=lambda p: p.stat().st_mtime)
 
 
 class Site(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.snap = fetch_data.load(SNAP)
-        cls.manual = load_manual(cls.snap["meta"]["set"])
+        cls.manual = json.loads(MANUAL.read_text(encoding="utf-8"))
+        cls.snap = fixture.snapshot(cls.manual)
 
     def problems(self, snap=None, manual=None):
         return checks.check(snap or self.snap, manual or self.manual)
 
-    def test_committed_snapshot_passes_the_guard(self):
+    def test_fixture_passes_the_guard(self):
         self.assertEqual(self.problems(), [])
+
+    def test_local_snapshot_passes_the_guard(self):
+        if not LOCAL:
+            self.skipTest("no snapshot in cache/snapshots/ (run python3 fetch_data.py)")
+        snap = fetch_data.load(LOCAL[-1])
+        self.assertEqual(checks.check(snap, load_manual(snap["meta"]["set"])), [])
 
     def test_pages_render_from_the_snapshot_alone(self):
         with tempfile.TemporaryDirectory() as d:
@@ -28,8 +39,7 @@ class Site(unittest.TestCase):
             pages = {p.name: p.read_text(encoding="utf-8") for p in Path(d).glob("*.html")}
             self.assertEqual(set(pages), {"index.html", "class.html", "origin.html", "synergy.html", "craft.html"})
             self.assertTrue(list(Path(d, "synergy").glob("*.html")))
-            m = self.snap["meta"]
-            self.assertIn("版本 %s" % m["patch_label"], pages["index.html"])
+            self.assertIn("版本 %s" % self.snap["meta"]["patch_label"], pages["index.html"])
             for gone in ("阵眼—", "三星价值</h3>", "羁绊强度</h3>", "最强阵容</h3>", "站位结论（"):
                 for name, html in pages.items():
                     self.assertNotIn(gone, html, name)
@@ -77,15 +87,22 @@ class Site(unittest.TestCase):
         self.assertEqual(self.problems(self.snap, sk), [])
 
     def test_manual_file_is_in_the_one_entry_per_line_format(self):
-        p = ROOT / "sets" / ("set%d.json" % self.snap["meta"]["set"])
-        self.assertEqual(checks.dump_manual(self.manual), p.read_text(encoding="utf-8").replace("\r\n", "\n"))
+        self.assertEqual(checks.dump_manual(self.manual), MANUAL.read_text(encoding="utf-8").replace("\r\n", "\n"))
+
+    def test_snapshots_are_written_with_lf_and_hashed_reproducibly(self):
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(fetch_data, "SNAPSHOTS", Path(d)):
+            p = fetch_data.save(self.snap)
+            self.assertNotIn(b"\r\n", p.read_bytes())
+            self.assertEqual(fetch_data.sha256(p), fetch_data.sha256(fetch_data.save(fetch_data.load(p))))
 
     def test_failed_guard_writes_no_snapshot(self):
         snap = copy.deepcopy(self.snap); snap["meta"]["tactics_set"] = None
-        target = fetch_data.snapshot_path(snap); before = target.read_bytes() if target.exists() else None
-        with self.assertRaises(SystemExit):
-            fetch_data.save(snap)
-        self.assertEqual(target.read_bytes() if target.exists() else None, before)
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(fetch_data, "SNAPSHOTS", Path(d, "snapshots")), \
+                mock.patch.object(fetch_data, "RAW", Path(d, "raw")):
+            with self.assertRaises(SystemExit):
+                fetch_data.save(snap)
+            self.assertFalse(Path(d, "snapshots").exists())
+            self.assertTrue(Path(d, "failed_snapshot.json").exists())
 
 
 if __name__ == "__main__":

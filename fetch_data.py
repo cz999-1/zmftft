@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""抓取全部数据源，存成快照 data/<set>/<patch>.json；页面只从快照渲染 (stdlib only).
+"""抓取全部数据源，存成快照 cache/snapshots/set<N>/<patch>.json；页面只从快照渲染 (stdlib only).
 用法: python3 fetch_data.py [--no-cache | --offline]
-原始响应缓存在 cache/raw/（已 gitignore，6 小时内复用）；快照只保留页面用到的字段。
+原始响应缓存在 cache/raw/（6 小时内复用）；快照只保留页面用到的字段。cache/ 整个不入库（已 gitignore）：
+仓库里只有生成的页面和快照的 SHA-256（README）。快照按 LF 换行写，同一份数据在任何系统上哈希相同。
 --offline 不联网，用 cache/raw/ 里已有的原始响应（不论新旧）重建快照。"""
-import argparse, json, re, time
+import argparse, hashlib, json, re, time
 from datetime import datetime, timezone
 from pathlib import Path
 from generate_tft_table import (fetch, fetch_json, fetch_next_data, load_unit_builds, detect_set_filter, set_number,
@@ -12,7 +13,7 @@ import craft, checks
 
 ROOT = Path(__file__).resolve().parent
 RAW = ROOT / "cache" / "raw"
-DATA = ROOT / "data"
+SNAPSHOTS = ROOT / "cache" / "snapshots"
 MAX_AGE = 6 * 3600
 TOP_BUILDS = 3  # 每个英雄保留的二/三件装组合数（按 tactics.tools 原顺序）
 
@@ -90,7 +91,11 @@ def make_snapshot(raw):
 
 def snapshot_path(snap):
     m = snap["meta"]
-    return DATA / ("set%d" % m["set"]) / ("%s.json" % (m["patch_label"] or m["patch"]))
+    return SNAPSHOTS / ("set%d" % m["set"]) / ("%s.json" % (m["patch_label"] or m["patch"]))
+
+
+def dumps(snap):
+    return (json.dumps(snap, ensure_ascii=False, indent=1) + "\n").encode("utf-8")  # LF everywhere: stable SHA-256
 
 
 def save(snap):
@@ -99,12 +104,16 @@ def save(snap):
         checks.require(snap)
     except SystemExit:
         RAW.parent.mkdir(parents=True, exist_ok=True)
-        (RAW.parent / "failed_snapshot.json").write_text(json.dumps(snap, ensure_ascii=False, indent=1), encoding="utf-8")
+        (RAW.parent / "failed_snapshot.json").write_bytes(dumps(snap))
         raise
     p = snapshot_path(snap)
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(snap, ensure_ascii=False, indent=1), encoding="utf-8")
+    p.write_bytes(dumps(snap))
     return p
+
+
+def sha256(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 def load(path):
@@ -117,7 +126,7 @@ def main():
     ap.add_argument("--offline", action="store_true", help="不联网，用 cache/raw/ 已有的原始响应重建快照")
     a = ap.parse_args()
     p = save(make_snapshot(collect_raw(a.no_cache, a.offline)))
-    print("snapshot →", p, p.stat().st_size, "bytes")
+    print("snapshot →", p, p.stat().st_size, "bytes, sha256", sha256(p))
 
 
 if __name__ == "__main__":

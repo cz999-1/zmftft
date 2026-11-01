@@ -38,10 +38,10 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
   - [Community Dragon](https://raw.communitydragon.org/)：英雄中文名、费用、羁绊归属、头像/装备图标、装备配方（`zh_cn.json`）
 - **人工标注** `sets/set<N>.json`（官方数据里没有的部分）：羁绊类型（职业 / 种族）与行顺序、每个英雄的前/中/后排、要隐藏的 id（拉克丝的羁绊形态）、改名。按 id 写，名字只为方便阅读
 - **生成脚本**（只用 Python 标准库，无第三方依赖）
-  - `fetch_data.py`：每个数据源只请求一次，原始响应缓存在 `cache/raw/`（已 gitignore，6 小时内复用），只把页面用到的字段存成快照 `data/<set>/<patch>.json`（带 set、版本、分段、tactics.tools 数据更新时间、抓取时间、来源）
+  - `fetch_data.py`：每个数据源只请求一次，原始响应缓存在 `cache/raw/`（已 gitignore，6 小时内复用），只把页面用到的字段存成快照 `cache/snapshots/set<N>/<patch>.json`（带 set、版本、分段、tactics.tools 数据更新时间、抓取时间、来源）。快照**不入库**：仓库里只有由它生成的页面和它的 SHA-256（见「页面数据快照」）
   - `generate_tft_table.py`：抓取工具、组装英雄表（官方中文名与费用 + `sets/` 里的人工标注）、出装
   - `checks.py`：构建护栏，每次存快照和生成页面前都跑；不通过就退出、什么都不写（问题列表会打印出来，快照留在 `cache/failed_snapshot.json` 供排查）。检查：Community Dragon、tactics.tools 页面标题和 `sets/` 文件的赛季号一致；tactics.tools 的每个英雄 id 都在官方数据里；矩阵里每个英雄有中文名、1–5 费、图标、站位，人工标注里的名字和官方一致；用到的每个羁绊都标了职业或种族；棋盘数、阵容数、合成表大小在合理范围
-  - `tests/`：`python3 -m unittest discover -s tests`（标准库，不联网）
+  - `tests/`：`python3 -m unittest discover -s tests`（标准库，不联网；用 `tests/fixture.py` 生成的假快照：真实 id 和名字、编造的数字。本地 `cache/snapshots/` 里有真实快照时也检查它）
   - `craft.py`：从 Community Dragon 读取当前赛季配方，生成装备合成矩阵、纹章、冠冕
   - `build_site.py`：把以上内容组装成多页站点（共享顶部导航，内联 CSS/JS）：`index.html` 首页（下线说明 + 各页入口）、`class.html` 职业站位、`origin.html` 种族站位（只有 1 名英雄的种族合并为「单一英雄种族」一行）、`craft.html` 装备合成；页面间用相对链接互跳，旧的 `#craft` 等锚点会自动跳到新页面
 - **部署**：4 个 `*.html` 推到 `main`，由 GitHub Pages 直接托管
@@ -77,13 +77,24 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
 
 ```bash
 python3 -m data.riot.match_api   # 可选，需 RIOT_API_KEY；随后 python3 -m data.riot.compare
-python3 build_site.py            # 抓取 → 存快照 data/<set>/<patch>.json → 只从快照生成页面
+python3 build_site.py            # 抓取 → 存快照 cache/snapshots/set<N>/<patch>.json → 只从快照生成页面
 python3 build_site.py --no-cache # 强制重新抓取（不用 cache/raw/）
-python3 build_site.py --data data/set18/18.5c.json   # 只用已有快照重新生成页面，不联网
-git add *.html synergy data && git commit -m "refresh data" && git push
+python3 build_site.py --data cache/snapshots/set18/18.5c.json   # 只用已有快照重新生成页面，不联网
+# 把下面「页面数据快照」那一行换成新快照的文件名和 SHA-256（build_site.py 最后会打印）
+git add *.html synergy README.md && git commit -m "refresh data" && git push
 ```
 
 新赛季上线后，Community Dragon 与 tactics.tools 更新数据，重跑即可；赛季编号相关的过滤在脚本中自动检测/可调整。
+
+### 页面数据快照
+
+快照只存在本地（`cache/` 已 gitignore），不进仓库，也不会被 GitHub Pages 发布。现在的页面由这一份生成：
+
+| 快照 | SHA-256 | 内容 |
+|---|---|---|
+| `cache/snapshots/set18/18.5c.json` | `febbbc2ab9df35edd4d35f105d9d812d4bc7d045a0c94515ac6ba55714b35f3f` | tactics.tools 18.5c · 排位 · 钻石以上，1,563,397 个棋盘，数据截至 2026-11-01 15:11 UTC；抓取于 2026-11-01 17:00 UTC |
+
+核对：`python3 -c "import fetch_data; print(fetch_data.sha256('cache/snapshots/set18/18.5c.json'))"`。快照按 LF 换行写，同一份数据在任何系统上哈希相同；用它跑 `python3 build_site.py --data …` 应得到和仓库里一模一样的页面。
 
 ## 页面结构
 
@@ -117,7 +128,7 @@ git add *.html synergy data && git commit -m "refresh data" && git push
    - 基础散件不是 10 个（`craft.py` 的 `COMPS`）；
    - 英雄数、棋盘数等超出 `checks.py` 的 `BOUNDS`；
    - tactics.tools 页面上的筛选文字（「排位模式 钻石以上 18.5c」）或标题（「Set 18」）换了格式（`fetch_data.py` 的 `units_page`）。
-6. 旧赛季的快照留在 `data/set18/` 存档；README 里 Set 18 的例子按需更新。
+6. 旧赛季的快照留在本地 `cache/snapshots/set18/`（不入库）；README 里 Set 18 的例子按需更新。
 
 ## 已下线的板块（2026-11-01）
 
