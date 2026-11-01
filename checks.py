@@ -81,9 +81,8 @@ def check(snap, manual=None):
     _between("craft_components", len(snap["craft"]["components"]), p)
     _between("craft_recipes", len(snap["craft"]["recipes"]), p)
     for u, s in snap["unit_stats"].items():
-        pl, t4, n = s.get("place"), s.get("top4"), s.get("count")
-        if pl is None or t4 is None or not n or not (1 <= pl <= 8 and 0 <= t4 <= 100):
-            p.append("%s：统计值不合理 %s" % (u, s))
+        if not isinstance(s.get("count"), int) or not 0 < s["count"] <= m["total"]:
+            p.append("%s：棋盘数不合理 %s（全部棋盘 %s）" % (u, s, m["total"]))
     return p
 
 

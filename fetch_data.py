@@ -91,7 +91,7 @@ def make_snapshot(raw):
                              "community_dragon": [CD_ROOT + "/latest/content-metadata.json", CDRAGON + "/zh_cn/v1/tftchampions.json",
                                                   CDRAGON + "/zh_cn/v1/tftitems.json", craft.CD_JSON]}},
         "official": {"units": official_units(raw["cd_tft"], set_no), "traits": official_traits(raw["cd_tft"], set_no)},
-        "unit_stats": {u: {k: s.get(k) for k in ("count", "place", "top4")} for u, s in sd["units"].items()},
+        "unit_stats": {u: {"count": s.get("count")} for u, s in sd["units"].items()},  # cards show 选率 only
         "champions": [{"character_record": {k: (c.get("character_record") or {}).get(k) for k in ("character_id", "display_name", "squareIconPath", "traits")}} for c in champs],
         "items": [{k: it.get(k) for k in ("nameId", "name", "squareIconPath")} for it in raw["items"] if set(item_keys(it.get("nameId") or "")) & used],
         "unit_builds": builds,

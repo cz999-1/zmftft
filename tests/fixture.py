@@ -35,7 +35,7 @@ def snapshot(manual, seed=0):
                  "fetched_at": "2026-01-01T00:00:00Z", "cdragon": {"latest_version": "16.21.0+fixture", "folder": "16.21"}, "sources": {}},
         "official": {"units": {i: {"name": name[i], "cost": 1 + j % 5, "traits": [trait_names[t] for t in traits[i]]} for j, i in enumerate(ids)},
                      "traits": trait_names},
-        "unit_stats": {i: {k: v for k, v in stats(rnd.randint(1000, 50000)).items() if k != "won"} for i in ids},
+        "unit_stats": {i: {"count": rnd.randint(1000, 50000)} for i in ids},
         "champions": [{"character_record": {"character_id": i, "display_name": name[i],
                                             "squareIconPath": "/lol-game-data/assets/ASSETS/Characters/Fixture/%s.png" % i,
                                             "traits": [{"name": trait_names[t], "id": t} for t in traits[i]]}} for i in ids],

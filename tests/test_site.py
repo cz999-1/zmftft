@@ -44,7 +44,9 @@ class Site(unittest.TestCase):
                 for name, html in pages.items():
                     self.assertNotIn(gone, html, name)
             self.assertIn("人工标注", pages["class.html"])
-            self.assertIn("满装率", pages["class.html"])
+            for page in ("class.html", "origin.html"):  # cards: 选率 and 满装率, no 均名 / 前四 (owner, 2026-11-01)
+                self.assertIn("满装率", pages[page]); self.assertIn("选率", pages[page])
+                self.assertNotIn("均名", pages[page]); self.assertNotIn("前四", pages[page])
             allpages = list(pages.values()) + [p.read_text(encoding="utf-8") for p in Path(d, "synergy").glob("*.html")]
             self.assertFalse([h for h in allpages if "communitydragon.org/latest/" in h])
             import html
@@ -64,7 +66,10 @@ class Site(unittest.TestCase):
                     if c["character_record"]["character_id"] not in hide)
 
     def test_guard_catches_an_unseen_unit_id(self):
-        self.check_catches(lambda s, m: s["unit_stats"].update(DA_New19_Unit={"count": 5, "place": 4.0, "top4": 50}), "DA_New19_Unit")
+        self.check_catches(lambda s, m: s["unit_stats"].update(DA_New19_Unit={"count": 5}), "DA_New19_Unit")
+
+    def test_guard_catches_an_impossible_board_count(self):
+        self.check_catches(lambda s, m: s["unit_stats"][self.roster_id()].update(count=s["meta"]["total"] + 1), "棋盘数不合理")
 
     def test_guard_catches_a_set_mismatch(self):
         self.check_catches(lambda s, m: s["meta"].update(tactics_set=s["meta"]["set"] + 1), "赛季不一致")

@@ -20,7 +20,7 @@ zmftft 的目标很简单：**用最新数据自动生成一张中文、当前�
 | 问题 | zmftft 的做法 |
 | --- | --- |
 | 不清楚羁绊里谁站前/中/后排 | 职业、起源两张矩阵：每个羁绊 × 前排 / 中排 / 后排，列出对应英雄 |
-| 英雄费用一眼看不出 | 卡片按费用着色，并显示平均名次、前四率、选取率（最终棋盘统计，只宜同费用内参考，不代表强度） |
+| 英雄费用一眼看不出 | 卡片按费用着色，并显示选取率和满装率（不再显示平均名次和前四率：它们来自最终棋盘，高费卡、后期才成型的卡天然名次更好） |
 | 不知道带什么装 | 每个英雄列出出场最多的二件套 / 三件套，附吃鸡率（全体基线 12.5%）与场次 |
 | 装备合成表过时 | 当前 Set 18 的 10×10 散件合成矩阵（含金铲铲 / 金锅锅），附纹章与冠冕清单 |
 | 找某个英雄/羁绊太慢 | 顶部搜索框 + 费用/位置过滤器 |
@@ -34,7 +34,7 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
 ```
 
 - **数据源**
-  - [tactics.tools](https://tactics.tools/zh/units)：英雄名次、前四率、选取率、出装统计、羁绊表现
+  - [tactics.tools](https://tactics.tools/zh/units)：英雄选取率、成装数分布（满装率）、出装统计、主流阵容
   - [Community Dragon](https://raw.communitydragon.org/)：英雄中文名、费用、羁绊归属、头像/装备图标、装备配方（`zh_cn.json`）
 - **人工标注** `sets/set<N>.json`（官方数据里没有的部分）：羁绊类型（职业 / 种族）与行顺序、每个英雄的前/中/后排、要隐藏的 id（拉克丝的羁绊形态）、改名。按 id 写，名字只为方便阅读
 - **生成脚本**（只用 Python 标准库，无第三方依赖）
@@ -52,7 +52,7 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
 | **Riot Data Dragon**（官方，免 key） | 当前版本号、英雄/装备/羁绊官方中文名与费用、官方图标；目前构建不使用（`python3 -m data.riot.ddragon` 可单独拉取） |
 | **Riot TFT Match API**（官方，需 key） | 本地小样本自检、与 tactics.tools 对比；不上页面（样本太小，而且开发 / 个人 key 的数据按 Riot 规定不能用于公开站点） |
 | **Community Dragon** | 现有主数据：完整游戏文件解包（英雄中文名、费用、羁绊归属、羁绊效果数值、合成配方、技能描述、更全的图标），更新最快 |
-| **tactics.tools** | 大样本统计：名次、出装 |
+| **tactics.tools** | 大样本统计：选取率、成装数、出装、主流阵容 |
 
 详见 [data/riot/README.md](data/riot/README.md)。
 
@@ -65,7 +65,7 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
 | 更新频率 | 随正式补丁发布，常滞后数天 | 实时 | 补丁/PBE 推送后很快更新 |
 | 需要 key | 否 | 是（RIOT_API_KEY） | 否 |
 
-**分工**：Community Dragon 是页面与合成表的主数据（中文名、费用、羁绊归属都从这里读）；Match API 小样本自检并与 tactics.tools 对比；tactics.tools 提供大样本名次与出装统计。
+**分工**：Community Dragon 是页面与合成表的主数据（中文名、费用、羁绊归属都从这里读）；Match API 小样本自检并与 tactics.tools 对比；tactics.tools 提供大样本选取率与出装统计。
 
 #### 配置 Riot key（只在本地）
 `cp .env.example .env`，填 `RIOT_API_KEY=`（`.env`、`config.local*`、`data/riot/riot.local.json`、`data/riot/cache/` 均已 gitignore）。然后：
@@ -92,7 +92,7 @@ git add *.html synergy README.md && git commit -m "refresh data" && git push
 
 | 快照 | SHA-256 | 内容 |
 |---|---|---|
-| `cache/snapshots/set18/18.5c.json` | `1bf8ac6da741836006e611a7ef960b8a2db83a5111fa1bade9af459f10a93f7e` | tactics.tools 18.5c · 排位 · 钻石以上，1,563,397 个棋盘，数据截至 2026-11-01 15:11 UTC；抓取于 2026-11-01 17:00 UTC；Community Dragon 数据取自 latest（16.21.8342754），图片固定在 `16.21` 目录 |
+| `cache/snapshots/set18/18.5c.json` | `6c2b5705c3d63012b649e114ae7a4fa324c16192b5fafa417fa46c035e96ab35` | tactics.tools 18.5c · 排位 · 钻石以上，1,563,397 个棋盘，数据截至 2026-11-01 15:11 UTC；抓取于 2026-11-01 17:00 UTC；Community Dragon 数据取自 latest（16.21.8342754），图片固定在 `16.21` 目录 |
 
 核对：`python3 -c "import fetch_data; print(fetch_data.sha256('cache/snapshots/set18/18.5c.json'))"`。快照按 LF 换行写，同一份数据在任何系统上哈希相同；用它跑 `python3 build_site.py --data …` 应得到和仓库里一模一样的页面。
 
