@@ -32,7 +32,7 @@ def snapshot(manual, seed=0):
     return {
         "meta": {"set": s, "set_marker": "TFT_Set%d" % s, "patch": 0, "patch_label": "0.0z", "rank_label": "测试分段",
                  "tactics_set": s, "aperture": {}, "total": 1_000_000, "last_updated": "2026-01-01T00:00:00Z",
-                 "fetched_at": "2026-01-01T00:00:00Z", "sources": {}},
+                 "fetched_at": "2026-01-01T00:00:00Z", "cdragon": {"latest_version": "16.21.0+fixture", "folder": "16.21"}, "sources": {}},
         "official": {"units": {i: {"name": name[i], "cost": 1 + j % 5, "traits": [trait_names[t] for t in traits[i]]} for j, i in enumerate(ids)},
                      "traits": trait_names},
         "unit_stats": {i: {k: v for k, v in stats(rnd.randint(1000, 50000)).items() if k != "won"} for i in ids},

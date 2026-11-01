@@ -45,6 +45,9 @@ class Site(unittest.TestCase):
                     self.assertNotIn(gone, html, name)
             self.assertIn("人工标注", pages["class.html"])
             self.assertIn("满装率", pages["class.html"])
+            allpages = list(pages.values()) + [p.read_text(encoding="utf-8") for p in Path(d, "synergy").glob("*.html")]
+            self.assertFalse([h for h in allpages if "communitydragon.org/latest/" in h])
+            self.assertTrue(all("communitydragon.org/16.21/" in h for h in allpages if "<img" in h))
 
     def check_catches(self, mutate, needle):
         snap, manual = copy.deepcopy(self.snap), copy.deepcopy(self.manual)
@@ -74,6 +77,10 @@ class Site(unittest.TestCase):
 
     def test_guard_catches_an_untyped_trait(self):
         self.check_catches(lambda s, m: m["classes"].pop(0), "标职业或种族")
+
+    def test_guard_catches_images_on_latest(self):
+        self.check_catches(lambda s, m: s["meta"]["cdragon"].update(folder="latest"), "版本目录")
+        self.check_catches(lambda s, m: s["craft"]["recipes"][0].update(icon="https://raw.communitydragon.org/latest/game/x.png"), "合成表图片")
 
     def test_guard_catches_a_count_out_of_range(self):
         self.check_catches(lambda s, m: s["meta"].update(total=5), "total")

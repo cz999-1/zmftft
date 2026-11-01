@@ -8,7 +8,7 @@ import argparse, hashlib, json, re, time
 from datetime import datetime, timezone
 from pathlib import Path
 from generate_tft_table import (fetch, fetch_json, fetch_next_data, load_unit_builds, detect_set_filter, set_number,
-    official_units, official_traits, item_keys, TACTICS, CDRAGON)
+    official_units, official_traits, item_keys, TACTICS, CDRAGON, CD_ROOT)
 import craft, checks
 
 ROOT = Path(__file__).resolve().parent
@@ -47,12 +47,19 @@ def collect_raw(refresh=False, offline=False):
     raw = {"units": get("tt_units_page", units_page)}
     raw["builds"] = get("tt_unit_builds", lambda: load_unit_builds(list(raw["units"]["pageProps"]["statsData"]["units"]), workers=12))
     raw["groups"] = get("tt_comps", lambda: fetch_next_data(TACTICS + "/zh/team-compositions")["props"]["pageProps"]["initialData"]["groups"])
+    raw["cd_meta"] = get("cd_meta", lambda: fetch_json(CD_ROOT + "/latest/content-metadata.json"))  # which patch latest is
     raw["champs"] = get("cd_champions", lambda: fetch_json(CDRAGON + "/zh_cn/v1/tftchampions.json"))
     raw["items"] = get("cd_items", lambda: fetch_json(CDRAGON + "/zh_cn/v1/tftitems.json"))
     raw["cd_tft"] = get("cd_tft", craft.fetch)
-    names = ("tt_units_page", "tt_unit_builds", "tt_comps", "cd_champions", "cd_items", "cd_tft")
+    names = ("tt_units_page", "tt_unit_builds", "tt_comps", "cd_meta", "cd_champions", "cd_items", "cd_tft")
     raw["fetched_at"] = min((RAW / (n + ".json")).stat().st_mtime for n in names)
     return raw
+
+
+def cd_folder(version):
+    """Community Dragon version '16.21.8342754+branch.releases-16-21...' -> its patch folder '16.21'."""
+    m = re.match(r"(\d+\.\d+)\.", version or "")
+    return m.group(1) if m else None
 
 
 def make_snapshot(raw):
@@ -71,14 +78,18 @@ def make_snapshot(raw):
     for gr in raw["groups"]:
         for v in gr.values():
             if isinstance(v, dict): comps += v.get("comps") or []
-    components, table = craft.build(raw["cd_tft"], set_no)
+    folder = cd_folder(raw["cd_meta"].get("version"))
+    components, table = craft.build(raw["cd_tft"], set_no, folder)
     return {
         "meta": {"set": set_no, "set_marker": mk, "patch": (ap.get("patch") or {}).get("_0", "?"), "patch_label": raw["units"]["patch_label"],
                  "rank_label": raw["units"]["rank_label"], "tactics_set": raw["units"].get("set_label"), "aperture": ap, "total": sd["totalEntries"],
                  "last_updated": datetime.fromtimestamp(sd["lastUpdated"], timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if sd.get("lastUpdated") else None,
                  "fetched_at": datetime.fromtimestamp(raw["fetched_at"], timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                 "cdragon": {"latest_version": raw["cd_meta"].get("version"), "folder": folder,
+                             "note": "data read from latest; image URLs use this patch folder"},
                  "sources": {"tactics.tools": [TACTICS + "/zh/units", TACTICS + "/zh/units/<id>", TACTICS + "/zh/team-compositions"],
-                             "community_dragon": [CDRAGON + "/zh_cn/v1/tftchampions.json", CDRAGON + "/zh_cn/v1/tftitems.json", craft.CD_JSON]}},
+                             "community_dragon": [CD_ROOT + "/latest/content-metadata.json", CDRAGON + "/zh_cn/v1/tftchampions.json",
+                                                  CDRAGON + "/zh_cn/v1/tftitems.json", craft.CD_JSON]}},
         "official": {"units": official_units(raw["cd_tft"], set_no), "traits": official_traits(raw["cd_tft"], set_no)},
         "unit_stats": {u: {k: s.get(k) for k in ("count", "place", "top4")} for u, s in sd["units"].items()},
         "champions": [{"character_record": {k: (c.get("character_record") or {}).get(k) for k in ("character_id", "display_name", "squareIconPath", "traits")}} for c in champs],

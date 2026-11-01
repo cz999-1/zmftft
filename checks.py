@@ -1,10 +1,11 @@
 """构建护栏：快照和人工标注不通过就不生成页面、不存快照 (stdlib only).
 用法: python3 checks.py [cache/snapshots/set18/18.5c.json]  # 单独检查一个快照（默认最新的）
+      python3 checks.py --images [快照]                      # 联网：逐个检查页面引用的图片能否打开
       python3 checks.py --skeleton cache/failed_snapshot.json  # 新赛季：生成 sets/set<N>.json 草稿
-build_site.py 每次构建前都会调用 check()。"""
-import json, sys
+build_site.py 每次构建前都会调用 check()（不联网）。"""
+import contextlib, io, json, re, sys, tempfile, time, urllib.request
 from pathlib import Path
-from generate_tft_table import load_manual, SETS
+from generate_tft_table import load_manual, SETS, CD_ROOT, UA
 
 # 合理范围（Set 18 的实际值见括号）：超出就说明数据源变了或抓取出错
 BOUNDS = {"roster": (40, 90),          # 矩阵里的英雄数（65）
@@ -35,6 +36,15 @@ def check(snap, manual=None):
         p.append("sets/set%d.json 里写的是 set %s" % (set_no, manual.get("set")))
     if not m.get("patch_label") or not m.get("rank_label"):
         p.append("tactics.tools 页面上没找到版本号或分段（筛选栏文字可能改了）")
+    # 1b. 图片地址固定在 Community Dragon 的版本目录（如 16.21），不用 latest：换赛季后 latest 里的旧图会变或消失
+    folder = (m.get("cdragon") or {}).get("folder") or ""
+    if not re.fullmatch(r"\d+\.\d+", folder):
+        p.append("没记下 Community Dragon 的版本目录（%r）：图片会指向 latest" % folder)
+    else:
+        craft_icons = [c[2] for c in snap["craft"]["components"]] + [r["icon"] for r in snap["craft"]["recipes"]]
+        off = [u for u in craft_icons if u and not u.startswith("%s/%s/" % (CD_ROOT, folder))]
+        if off:
+            p.append("合成表图片没用版本目录 %s：%s 等 %d 个" % (folder, off[0], len(off)))
     # 2. tactics.tools 的每个英雄 id 都要在官方数据里（新 id 先登记再出页面）
     unseen = sorted(set(snap["unit_stats"]) - set(off_units))
     if unseen:
@@ -114,7 +124,37 @@ def dump_manual(doc):
     return "\n".join(out + ["}"]) + "\n"
 
 
+def image_urls(snap):
+    """页面会引用的全部图片地址（按快照渲染到临时目录后读出来）。"""
+    import build_site
+    urls = set()
+    with tempfile.TemporaryDirectory() as d, contextlib.redirect_stdout(io.StringIO()):
+        build_site.render(snap, Path(d))
+        for f in Path(d).rglob("*.html"):
+            urls |= set(re.findall(r'src="(https?://[^"]+)"', f.read_text(encoding="utf-8")))
+    return sorted(urls)
+
+
+def check_images(snap, pause=0.1):
+    """联网：逐个 HEAD 页面引用的图片（每个地址只请求一次），返回打不开的。"""
+    bad = []
+    for u in image_urls(snap):
+        try:
+            urllib.request.urlopen(urllib.request.Request(u, method="HEAD", headers=UA), timeout=20).close()
+        except Exception as err:
+            bad.append("%s（%s）" % (u, err))
+        time.sleep(pause)
+    return bad
+
+
 def main():
+    if sys.argv[1:2] == ["--images"]:
+        found = sorted(Path(__file__).resolve().parent.glob("cache/snapshots/set*/*.json"), key=lambda p: p.stat().st_mtime)
+        path = Path(sys.argv[2]) if len(sys.argv) > 2 else found[-1]
+        snap = json.loads(path.read_text(encoding="utf-8"))
+        n, bad = len(image_urls(snap)), check_images(snap)
+        print("\n".join(bad) or "%s：%d 个图片地址都能打开" % (path, n))
+        return 1 if bad else 0
     if sys.argv[1:2] == ["--skeleton"]:
         snap = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
         p = SETS / ("set%d.json" % snap["meta"]["set"])

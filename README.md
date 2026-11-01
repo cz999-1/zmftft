@@ -92,9 +92,11 @@ git add *.html synergy README.md && git commit -m "refresh data" && git push
 
 | 快照 | SHA-256 | 内容 |
 |---|---|---|
-| `cache/snapshots/set18/18.5c.json` | `febbbc2ab9df35edd4d35f105d9d812d4bc7d045a0c94515ac6ba55714b35f3f` | tactics.tools 18.5c · 排位 · 钻石以上，1,563,397 个棋盘，数据截至 2026-11-01 15:11 UTC；抓取于 2026-11-01 17:00 UTC |
+| `cache/snapshots/set18/18.5c.json` | `1bf8ac6da741836006e611a7ef960b8a2db83a5111fa1bade9af459f10a93f7e` | tactics.tools 18.5c · 排位 · 钻石以上，1,563,397 个棋盘，数据截至 2026-11-01 15:11 UTC；抓取于 2026-11-01 17:00 UTC；Community Dragon 数据取自 latest（16.21.8342754），图片固定在 `16.21` 目录 |
 
 核对：`python3 -c "import fetch_data; print(fetch_data.sha256('cache/snapshots/set18/18.5c.json'))"`。快照按 LF 换行写，同一份数据在任何系统上哈希相同；用它跑 `python3 build_site.py --data …` 应得到和仓库里一模一样的页面。
+
+**图片地址固定在版本目录。** 页面里的头像和装备图都指向 `raw.communitydragon.org/<版本>/…`（抓取时 latest 对应的补丁目录，例如 `16.21`），不指向 `latest/`：游戏换到 Set 19 后，latest 里的 Set 18 图会变或消失，固定目录里的不会。护栏会拒绝没有版本目录的快照。推送前可以联网检查一遍：`python3 checks.py --images`（每个图片地址发一次 HEAD 请求，约 160 个，40 秒左右）。以后自托管图片时再换掉。
 
 ## 页面结构
 
@@ -123,7 +125,7 @@ git add *.html synergy README.md && git commit -m "refresh data" && git push
    - 把 `"untyped"` 里的羁绊分到 `"classes"`（职业）和 `"origins"`（种族），顺序就是页面上的行顺序，然后删掉 `"untyped"`；
    - 每个英雄填 `front` / `mid` / `back`；
    - 有多种形态、tactics.tools 分开统计的英雄（像 Set 18 的拉克丝），形态 id 放进 `"hide"`；基础形态要改名的放进 `"rename"`。
-4. 再跑 `python3 build_site.py`，直到护栏通过；再跑 `python3 -m unittest discover -s tests`。
+4. 再跑 `python3 build_site.py`，直到护栏通过；再跑 `python3 -m unittest discover -s tests` 和 `python3 checks.py --images`。
 5. 护栏在这些情况也会停，需要改代码：
    - 基础散件不是 10 个（`craft.py` 的 `COMPS`）；
    - 英雄数、棋盘数等超出 `checks.py` 的 `BOUNDS`；

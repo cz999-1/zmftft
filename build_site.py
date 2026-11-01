@@ -93,14 +93,15 @@ def render(snap, out):
     costs = {k: v["cost"] for k, v in snap["official"]["units"].items()}
     class_order, origin_order = row_orders(manual, snap["official"]["traits"])
     champs = snap["champions"]
-    meta = build_item_meta(snap["items"])
+    folder = m["cdragon"]["folder"]  # image URLs use the snapshot's Community Dragon patch folder, not latest
+    meta = build_item_meta(snap["items"], folder)
     # all units incl. Lux skins, for the unit faces on the synergy pages
     allmap = {}
     for c in champs:
         cr = c.get("character_record") or {}
         allmap[cr.get("character_id")] = {"name": cr.get("display_name") or cr.get("character_id"),
-            "icon": cdragon_asset_url(cr.get("squareIconPath")), "cost": costs.get(cr.get("character_id"))}
-    roster = build_roster(champs, snap["unit_builds"], costs, manual)
+            "icon": cdragon_asset_url(cr.get("squareIconPath"), folder), "cost": costs.get(cr.get("character_id"))}
+    roster = build_roster(champs, snap["unit_builds"], costs, manual, folder)
     comps = snap["comps"]
     def U(i): return allmap.get(i) or {"name": i.replace("DA_", ""), "icon": "", "cost": None}
     cls_html = matrix(meta, roster, "classes", class_order, us, total, "cls", "职业羁绊 × 站位")

@@ -20,9 +20,11 @@ from pathlib import Path
 
 UA = {"User-Agent": "Mozilla/5.0 (compatible; TFT-Table-Generator/1.0)"}
 TACTICS = "https://tactics.tools"
-CDRAGON = "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global"
-
-CD_TFT = "https://raw.communitydragon.org/latest/cdragon/tft/zh_cn.json"
+CD_ROOT = "https://raw.communitydragon.org"
+CDRAGON = CD_ROOT + "/latest/plugins/rcp-be-lol-game-data/global"  # data is read from latest
+CD_TFT = CD_ROOT + "/latest/cdragon/tft/zh_cn.json"
+# Image URLs name a patch folder (e.g. 16.21) instead of latest: Set 18 icons under latest can change or
+# disappear once the game moves on. The site build pins the folder latest pointed to when the data was fetched.
 SETS = Path(__file__).resolve().parent / "sets"
 COST_COLORS = {1: "#9aa4af", 2: "#11b288", 3: "#207ac7", 4: "#c440c4", 5: "#ffb93b"}
 NO_CLASS = "（无职业/特殊）"
@@ -66,14 +68,14 @@ def fetch_next_data(url):
         raise RuntimeError("No __NEXT_DATA__ in " + url)
     return json.loads(m.group(1))
 
-def cdragon_asset_url(square_icon_path):
+def cdragon_asset_url(square_icon_path, folder="latest"):
     if not square_icon_path:
         return ""
     if "/ASSETS/" in square_icon_path:
         rel = square_icon_path.split("/ASSETS/", 1)[-1]
     else:
         rel = square_icon_path.split("/assets/", 1)[-1]
-    return CDRAGON + "/default/assets/" + rel.lower()
+    return "%s/%s/plugins/rcp-be-lol-game-data/global/default/assets/%s" % (CD_ROOT, folder, rel.lower())
 
 ITEM_PREFIX = re.compile(r"(?:TFT\d*|DA)_Item_")  # TFT_Item_, TFT5_Item_ … TFT18_Item_, a later set's, DA_Item_
 
@@ -82,12 +84,13 @@ def item_keys(nid):
     m = ITEM_PREFIX.match(nid)
     return [nid] + ([nid[m.end():], "DA_" + nid[m.end():]] if m else [])
 
-def build_item_meta(items_zh):
+def build_item_meta(items_zh, folder="latest"):
+    """Lookup key -> {"name", "icon"}; icon is the image URL in Community Dragon's `folder`."""
     meta = {}
     for it in items_zh:
         for key in item_keys(it.get("nameId") or ""):
             if key and key not in meta:
-                meta[key] = {"name": it.get("name") or "", "icon": it.get("squareIconPath") or ""}
+                meta[key] = {"name": it.get("name") or "", "icon": cdragon_asset_url(it.get("squareIconPath") or "", folder)}
     return meta
 
 def item_cn(meta, iid):
@@ -99,7 +102,7 @@ def item_cn(meta, iid):
 def item_icon(meta, iid):
     for key in (iid, iid.replace("DA_", "")):
         if key in meta and meta[key].get("icon"):
-            return cdragon_asset_url(meta[key]["icon"])
+            return meta[key]["icon"]
     return ""
 
 def load_unit_builds(unit_ids, workers=12):
@@ -131,8 +134,9 @@ def load_unit_builds(unit_ids, workers=12):
 # carry_tags (阵眼 = 3★/3-item 1st-place lift) and the 站位结论 verdict. All three read final-board
 # results that need a long game to reach, so they show who was already winning, not what wins.
 
-def build_roster(champs_zh, unit_builds, costs, manual):
-    """costs: {character_id: cost} from official data; manual: sets/set<N>.json (load_manual)."""
+def build_roster(champs_zh, unit_builds, costs, manual, folder="latest"):
+    """costs: {character_id: cost} from official data; manual: sets/set<N>.json (load_manual);
+    folder: the Community Dragon folder for the unit images."""
     hide = {i for i, _ in manual["hide"]}
     class_ids = {t for t, _ in manual["classes"]}
     roster = []
@@ -155,7 +159,7 @@ def build_roster(champs_zh, unit_builds, costs, manual):
         roster.append({
             "id": cid, "name": name, "cost": cost, "pos": pos,
             "classes": classes, "origins": origins, "traits": traits,
-            "icon": cdragon_asset_url(path),
+            "icon": cdragon_asset_url(path, folder),
             "top2": pairs[0] if pairs else None,
             "top3": trios[0] if trios else None,
             "item_counts": builds.get("itemCountData") or [],  # boards by # of finished items the unit holds

@@ -1,13 +1,13 @@
 """装备合成表 — 从 Community Dragon zh_cn TFT 数据为当前赛季生成合成矩阵 HTML。"""
 import re, html as H, json, urllib.request
 CD_JSON = "https://raw.communitydragon.org/latest/cdragon/tft/zh_cn.json"
-GAME = "https://raw.communitydragon.org/latest/game/"
+GAME = "https://raw.communitydragon.org/%s/game/"  # % Community Dragon folder: a patch such as 16.21 (pinned) or latest
 COMPS = ["BFSword", "RecurveBow", "NeedlesslyLargeRod", "TearOfTheGoddess", "ChainVest",
          "NegatronCloak", "GiantsBelt", "SparringGloves", "Spatula", "FryingPan"]
 e = lambda s: H.escape(str(s))
 
-def icon(p):
-    return GAME + p.lower().replace(".tex", ".png") if p else ""
+def icon(p, folder="latest"):
+    return (GAME % folder) + p.lower().replace(".tex", ".png") if p else ""
 
 def blurb(it):
     d = it.get("desc") or ""
@@ -34,7 +34,8 @@ def blurb(it):
 def fetch():
     return json.loads(urllib.request.urlopen(urllib.request.Request(CD_JSON, headers={"User-Agent": "zmftft"}), timeout=60).read())
 
-def build(d, set_no):
+def build(d, set_no, folder="latest"):
+    """folder: Community Dragon folder for the icon URLs (the site build passes the snapshot's patch folder)."""
     im = {i["apiName"]: i for i in d["items"]}
     S = next(s for s in d["setData"] if s.get("number") == set_no and s.get("mutator") == "TFTSet%d" % set_no)
     names = set(S["items"])
@@ -47,11 +48,11 @@ def build(d, set_no):
         if not all(x in COMPS for x in c): continue
         if a.startswith("TFT_Item_") or c not in table or "Emblem" in a:
             if c in table and table[c]["api"].startswith("TFT_Item_") and not a.startswith("TFT_Item_") and "Emblem" not in a: continue
-            table[c] = {"api": a, "name": it["name"], "icon": icon(it.get("icon")), "desc": blurb(it), "emblem": "Emblem" in a}
+            table[c] = {"api": a, "name": it["name"], "icon": icon(it.get("icon"), folder), "desc": blurb(it), "emblem": "Emblem" in a}
     for c, v in table.items():
         if v["emblem"]:
             v["desc"] = "携带者获得【%s】羁绊" % v["name"].replace("纹章", "")
-    comps = [(c, im["TFT_Item_" + c]["name"], icon(im["TFT_Item_" + c]["icon"])) for c in COMPS]
+    comps = [(c, im["TFT_Item_" + c]["name"], icon(im["TFT_Item_" + c]["icon"], folder)) for c in COMPS]
     return comps, table
 
 def section(comps, table, set_no):
