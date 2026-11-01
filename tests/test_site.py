@@ -2,7 +2,7 @@
 
 The tests use a made-up snapshot (tests/fixture.py); the real one is not in the repository. When a real
 snapshot exists in cache/snapshots/, it is checked too."""
-import copy, json, sys, tempfile, unittest
+import contextlib, copy, io, json, sys, tempfile, unittest
 from pathlib import Path
 from unittest import mock
 
@@ -118,6 +118,35 @@ class Site(unittest.TestCase):
                 fetch_data.save(snap)
             self.assertFalse(Path(d, "snapshots").exists())
             self.assertTrue(Path(d, "failed_snapshot.json").exists())
+
+
+# riot.txt as committed in 06a98ff (GitHub web editor, 2026-11-01). Riot's developer portal reads it at the
+# site root to verify the product URL for the production key. If Riot issues a new code, change both.
+RIOT_TXT = b"89be27aa-e7ce-41c6-aa42-5eff171a1b2b\n"
+
+
+def one_final_newline_off(b):
+    """Ignore one final newline: LF as committed, CRLF in a Windows checkout (core.autocrlf, no .gitattributes)."""
+    return b[:-2] if b.endswith(b"\r\n") else b[:-1] if b.endswith(b"\n") else b
+
+
+class RiotTxt(unittest.TestCase):
+    def check(self, path):
+        self.assertTrue(path.is_file(), "%s is gone: Riot's developer portal verifies the site with it" % path)
+        self.assertEqual(one_final_newline_off(path.read_bytes()), one_final_newline_off(RIOT_TXT), path)
+
+    def test_riot_txt_is_kept_as_committed(self):
+        self.check(ROOT / "riot.txt")
+
+    def test_a_build_keeps_riot_txt(self):
+        snap = fixture.snapshot(json.loads(MANUAL.read_text(encoding="utf-8")))
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(fetch_data, "SNAPSHOTS", Path(d, "snapshots")):
+            out = Path(d, "site"); out.mkdir(); (out / "riot.txt").write_bytes(RIOT_TXT)
+            argv = ["build_site.py", "--data", str(fetch_data.save(snap)), "--out", str(out)]
+            with mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(io.StringIO()):
+                build_site.main()
+            self.assertTrue((out / "index.html").is_file())  # the build ran
+            self.check(out / "riot.txt")
 
 
 if __name__ == "__main__":
