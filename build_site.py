@@ -3,7 +3,7 @@
 用法: python3 build_site.py [--out .] [--no-cache] [--data data/<set>/<patch>.json]
 先抓取并存快照（fetch_data.py），页面只从快照渲染；--data 只渲染、不联网。
 依赖同目录 generate_tft_table.py 中的映射与工具函数。"""
-import argparse, time, html as H
+import argparse, html as H
 from collections import defaultdict
 from pathlib import Path
 from generate_tft_table import (DEFAULT_COSTS, COST_COLORS, CLASS_ORDER, ORIGIN_ORDER, build_item_meta,
@@ -11,9 +11,6 @@ from generate_tft_table import (DEFAULT_COSTS, COST_COLORS, CLASS_ORDER, ORIGIN_
 
 import craft, synergy, fetch_data
 e = lambda s: H.escape(str(s))
-
-def pcls(p):
-    return "good" if p <= 3.8 else ("bad" if p >= 4.5 else "mid")
 
 def face(u, size=""):
     col = COST_COLORS.get(u.get("cost"), "#666")
@@ -25,15 +22,15 @@ def build_html(meta, b, label):
         return '<div class="bd none"><b>%s</b>—</div>' % label
     ids = b["items"] if isinstance(b["items"], list) else [b["items"]]
     icons = "".join('<img src="%s" title="%s" alt="%s" loading="lazy">' % (e(item_icon(meta, i)), e(item_cn(meta, i)), e(item_cn(meta, i))) for i in ids)
-    return '<div class="bd" title="%s"><b>%s</b>%s<span>%.0f%%</span></div>' % (
-        e(" + ".join(item_cn(meta, i) for i in ids)), label, icons, b.get("won") or 0)
+    return '<div class="bd" title="%s · 吃鸡率 %.1f%%（全体基线 12.5%%）· %d 场"><b>%s</b>%s<span>%.0f%%</span></div>' % (
+        e(" + ".join(item_cn(meta, i) for i in ids)), b.get("won") or 0, b.get("count") or 0, label, icons, b.get("won") or 0)
 
 def card(meta, r, us, total):
     s = us.get(r["id"]) or {}
     stat = ""
     if s:
-        stat = '<div class="st"><span class="%s">均名%.2f</span> · 前四%.0f%% · 选率%.1f%%</div>' % (
-            pcls(s["place"]), s["place"], s["top4"], s["count"] / total * 100)
+        stat = '<div class="st"><span>均名%.2f</span> · 前四%.0f%% · 选率%.1f%%</div>' % (
+            s["place"], s["top4"], s["count"] / total * 100)
     tags = "".join("<i>%s</i>" % e(t) for t in r["traits"])
     return ('<div class="ch" data-k="%s" data-cost="%s" data-pos="%s" style="--c:%s"><div class="ph"><img src="%s" alt="%s" loading="lazy" onerror="this.style.opacity=.2">'
             '<em>%s</em></div><div class="nm">%s</div><div class="tg">%s</div>%s%s%s</div>') % (
@@ -67,13 +64,13 @@ def matrix(meta, roster, key, order, us, total, sid, title):
         sub = ('<small>%s</small>' % e("、".join(solo))) if n == "单一英雄种族" else ""
         rows.append(('<div class="trow"><div class="tn">%s<small>%d 名英雄</small>' + sub + '</div>%s</div>') % (
             e(n), len({r["id"] for p in g[n].values() for r in p}), "".join(cols)))
-    return '<section id="%s"><h2>%s</h2><div class="legend">前排 / 中排 / 后排 · 均名颜色：<span class="good">≤3.8 强</span> <span class="bad">≥4.5 弱</span> · 二/三件装为出场最多组合（胜率%%）</div>%s</section>' % (sid, title, "".join(rows))
+    return '<section id="%s"><h2>%s</h2><div class="legend">前排 / 中排 / 后排 · 均名、前四、选率来自对局结束时的最终棋盘：高费卡、后期才成型的卡天然名次更好，只宜在同费用内参考，不代表强度 · 二/三件装为该英雄出场最多的组合，百分比为吃鸡率（第 1 名比例，全体基线 12.5%%），场次见悬停提示</div>%s</section>' % (sid, title, "".join(rows))
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=".", help="输出目录")
     ap.add_argument("--no-cache", action="store_true", help="忽略 cache/raw/ 重新抓取")
-    ap.add_argument("--data", help="只用这个快照渲染、不联网，例如 data/set18/16212.json")
+    ap.add_argument("--data", help="只用这个快照渲染、不联网，例如 data/set18/18.5c.json")
     a = ap.parse_args()
     if a.data:
         path = Path(a.data)
@@ -84,7 +81,7 @@ def main():
 
 def render(snap, out):
     """页面只读快照，不联网。"""
-    us = snap["unit_stats"]; total = snap["meta"]["total"]; patch = snap["meta"]["patch"]
+    us = snap["unit_stats"]; total = snap["meta"]["total"]
     champs = snap["champions"]
     meta = build_item_meta(snap["items"])
     # all units incl. Lux skins, for the unit faces on the synergy pages
@@ -104,19 +101,22 @@ def render(snap, out):
               "craft.html": craft.section([tuple(c) for c in snap["craft"]["components"]], {tuple(r["pair"]): r for r in snap["craft"]["recipes"]})[0]}
     syn_mat, syn_pages = synergy.build(comps, roster, ORIGIN_ORDER, total, face, U, None)
     bodies["synergy.html"] = syn_mat
+    m = snap["meta"]; tpl = TPL
+    for k, v in (("{{SET}}", m["set"]), ("{{PATCH}}", m["patch_label"] or "tactics.tools 编号 %s" % m["patch"]),
+                 ("{{SCOPE}}", ("排位 · %s" % m["rank_label"] if m["rank_label"] else "分段未注明") + " · 地区未注明"),
+                 ("{{N}}", "{:,}".format(total)), ("{{DATE}}", (m["last_updated"] or m["fetched_at"]).replace("T", " ")[:16] + " UTC")):
+        tpl = tpl.replace(k, e(v))
     out.mkdir(parents=True, exist_ok=True); (out / "synergy").mkdir(exist_ok=True)
     for old in (out / "synergy").glob("*.html"): old.unlink()
     for fn, (t, body) in syn_pages.items():
         nav = "".join('<a href="../%s"%s>%s</a>' % (f, ' class="cur"' if f == "synergy.html" else "", tt) for f, tt, _ in PAGES)
-        doc = TPL.replace("{{PATCH}}", e(patch)).replace("{{N}}", "%d" % total).replace("{{DATE}}", time.strftime("%Y-%m-%d %H:%M")) \
-            .replace("{{CRAFTCSS}}", craft.CSS + synergy.CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", t).replace("{{FILTERS}}", "").replace("{{SEARCH}}", "").replace("{{BODY}}", body).replace('href="index.html"', 'href="../index.html"')
+        doc = tpl.replace("{{CRAFTCSS}}", craft.CSS + synergy.CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", t).replace("{{FILTERS}}", "").replace("{{SEARCH}}", "").replace("{{BODY}}", body).replace('href="index.html"', 'href="../index.html"')
         (out / fn).write_text(doc, encoding="utf-8")
     for fn, title, _ in PAGES:
         nav = "".join('<a href="%s"%s>%s</a>' % (f, ' class="cur"' if f == fn else "", t) for f, t, _ in PAGES)
         filt = FILTERS if fn in ("class.html", "origin.html") else ""
         search = SEARCH if filt else ""
-        doc = TPL.replace("{{PATCH}}", e(patch)).replace("{{N}}", "%d" % total).replace("{{DATE}}", time.strftime("%Y-%m-%d %H:%M")) \
-            .replace("{{CRAFTCSS}}", craft.CSS + synergy.CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", title).replace("{{FILTERS}}", filt).replace("{{SEARCH}}", search).replace("{{BODY}}", bodies[fn])
+        doc = tpl.replace("{{CRAFTCSS}}", craft.CSS + synergy.CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", title).replace("{{FILTERS}}", filt).replace("{{SEARCH}}", search).replace("{{BODY}}", bodies[fn])
         (out / fn).write_text(doc, encoding="utf-8")
         print("done →", out / fn, len(doc), "bytes")
     print(len(roster), "champions;", len(comps), "comps")
@@ -126,9 +126,9 @@ REMOVED = '''<section id="ins"><h2>说明</h2><div class="box"><p>首页的「�
 <p class="hint">它们只看对局结束时的最终棋盘：活得越久越容易凑出三星、满装、高费卡和高档羁绊，所以这些数字主要说明“这局本来就在赢”，不说明“照这样玩能赢”。阵容强度目前还无法从最终棋盘可靠测出，测出之前这里不放排行。</p></div></section>'''
 
 PAGES = [("index.html", "首页", "说明与各页入口"),
-         ("class.html", "职业站位", "各职业羁绊的前/中/后排英雄与推荐出装"),
-         ("origin.html", "种族站位", "各种族羁绊的前/中/后排英雄与推荐出装"),
-         ("synergy.html", "种族搭配", "种族 × 种族 胜率矩阵，点格子看所有英雄组合"),
+         ("class.html", "职业站位", "各职业羁绊的前/中/后排英雄与常用出装"),
+         ("origin.html", "种族站位", "各种族羁绊的前/中/后排英雄与常用出装"),
+         ("synergy.html", "种族搭配", "种族 × 种族 搭配矩阵（均名、选率），点格子看所有英雄组合"),
          ("craft.html", "装备合成", "Set 18 散件合成表、纹章与冠冕")]
 FILTERS = r'''<div class="filters" id="filters">
   <div class="fg"><span class="fl">费用</span>
@@ -170,7 +170,6 @@ section{margin:36px 0}h2{font-size:22px;border-left:4px solid var(--ac);padding-
 .box{background:var(--pn);border:1px solid var(--bd);border-radius:var(--r);padding:14px}
 .sub{color:var(--mu);font-size:12px;margin-top:6px}
 .av{display:inline-block;width:38px;height:38px;border-radius:8px;border:2px solid var(--c);overflow:hidden;background:#000}.av img{width:100%;height:100%;object-fit:cover}.av.sm{width:30px;height:30px}
-.good{color:var(--good)!important}.bad{color:var(--bad)!important}
 .legend{color:var(--mu);font-size:12px;margin:-6px 0 14px}
 .trow{display:grid;grid-template-columns:120px 1fr 1fr 1fr;gap:10px;background:var(--pn);border:1px solid var(--bd);border-radius:var(--r);padding:12px;margin-bottom:10px}
 .tn{font-weight:700;font-size:16px}.tn small{display:block;color:var(--mu);font-weight:400;font-size:12px}
@@ -188,12 +187,12 @@ footer{color:var(--mu);border-top:1px solid var(--bd);padding:24px 0 60px;font-s
 @media(max-width:800px){nav .wrap{flex-wrap:wrap;height:auto;padding:8px 12px}nav input{width:100%;margin:0}.trow{grid-template-columns:1fr}.filters{padding:10px}}
 </style></head><body>
 <nav><div class="wrap"><a class="lg" href="index.html">zmftft</a>{{NAV}}{{SEARCH}}</div></nav>
-<div class="wrap"><header><h1>{{TITLE}}</h1><p><span class="pill">Set 18 · patch {{PATCH}}</span><span class="pill">{{N}} 场样本</span><span class="pill">更新 {{DATE}}</span></p>
+<div class="wrap"><header><h1>{{TITLE}}</h1><p><span class="pill">Set {{SET}} · 版本 {{PATCH}}</span><span class="pill">{{SCOPE}}</span><span class="pill">{{N}} 个棋盘</span><span class="pill">数据截至 {{DATE}}</span></p>
 <p>数据来源 <a href="https://tactics.tools/zh/units" style="color:var(--ac)">tactics.tools</a> · 图标 Community Dragon</p>
 {{FILTERS}}
 </header>
 {{BODY}}
-<footer>新版本重新生成：<code>python3 build_site.py --no-cache</code>（生成 4 个页面） 然后 <code>git push</code>。非官方粉丝站，数据仅供参考。</footer></div>
+<footer>新版本重新生成：<code>python3 build_site.py --no-cache</code>（生成全部页面） 然后 <code>git push</code>。非官方粉丝站，数据仅供参考。</footer></div>
 <script>
 (function(){
   var state={q:'',cost:'',pos:'',sec:''};
