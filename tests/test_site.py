@@ -51,6 +51,7 @@ class Site(unittest.TestCase):
             self.assertFalse([h for h in allpages if "communitydragon.org/latest/" in h])
             import html
             self.assertTrue(all(html.escape(build_site.RIOT_NOTICE) in h for h in allpages))  # Riot's notice on every page
+            self.assertTrue(all(html.escape(build_site.RIOT_BOILERPLATE) in h for h in allpages))  # and the API boilerplate
             self.assertFalse([h for h in allpages if "build_site.py" in h])  # build commands live in the README
             self.assertTrue(all("communitydragon.org/16.21/" in h for h in allpages if "<img" in h))
 

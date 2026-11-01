@@ -111,7 +111,7 @@ def render(snap, out):
               "craft.html": craft.section([tuple(c) for c in snap["craft"]["components"]], {tuple(r["pair"]): r for r in snap["craft"]["recipes"]}, m["set"])[0]}
     syn_mat, syn_pages = synergy.build(comps, roster, origin_order, total, face, U, None)
     bodies["synergy.html"] = syn_mat
-    tpl = TPL.replace("{{RIOT_NOTICE}}", e(RIOT_NOTICE))
+    tpl = TPL.replace("{{RIOT_NOTICE}}", e(RIOT_NOTICE)).replace("{{RIOT_BOILERPLATE}}", e(RIOT_BOILERPLATE))
     for k, v in (("{{SET}}", m["set"]), ("{{PATCH}}", m["patch_label"] or "tactics.tools 编号 %s" % m["patch"]),
                  ("{{SCOPE}}", ("排位 · %s" % m["rank_label"] if m["rank_label"] else "分段未注明") + " · 地区未注明"),
                  ("{{N}}", "{:,}".format(total)), ("{{DATE}}", (m["last_updated"] or m["fetched_at"]).replace("T", " ")[:16] + " UTC")):
@@ -135,6 +135,11 @@ def render(snap, out):
 # section 6, last updated August 2018; read 2026-11-01). Only "[The title of your Project]" is filled in.
 RIOT_NOTICE = ("云顶攻略台 zmftft was created under Riot Games' \"Legal Jibber Jabber\" policy using assets owned by Riot Games.  "
                "Riot Games does not endorse or sponsor this project.")
+# Riot's legal boilerplate for third-party products, copied from https://developer.riotgames.com/policies/general
+# ("Core Policies", last updated May 29, 2025; read 2026-11-01). Only "[Your product]" is filled in.
+RIOT_BOILERPLATE = ("云顶攻略台 zmftft isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or "
+                    "anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated "
+                    "properties are trademarks or registered trademarks of Riot Games, Inc.")
 
 # 下线说明（2026-11-01）：最强阵容、冷门高胜率、三星价值、羁绊强度、站位结论、阵眼标签
 REMOVED = '''<section id="ins"><h2>说明</h2><div class="box"><p>首页的「最强阵容」「冷门高胜率」「三星价值」「羁绊强度」、种族页的「站位结论」和英雄卡上的「阵眼」标签已下线。</p>
@@ -207,7 +212,7 @@ footer{color:var(--mu);border-top:1px solid var(--bd);padding:24px 0 60px;font-s
 {{FILTERS}}
 </header>
 {{BODY}}
-<footer>非官方粉丝站，数据仅供参考。<br>{{RIOT_NOTICE}}</footer></div>
+<footer>非官方粉丝站，数据仅供参考。<br>{{RIOT_NOTICE}}<br>{{RIOT_BOILERPLATE}}</footer></div>
 <script>
 (function(){
   var state={q:'',cost:'',pos:'',sec:''};
