@@ -31,6 +31,11 @@ def card(meta, r, us, total):
     if s:
         stat = '<div class="st"><span>均名%.2f</span> · 前四%.0f%% · 选率%.1f%%</div>' % (
             s["place"], s["top4"], s["count"] / total * 100)
+    ic = {d.get("id"): d.get("count") or 0 for d in r.get("item_counts") or []}
+    n = sum(ic.values())
+    if n:  # 描述：玩家把成装给谁（代替以前的「阵眼—装备」）
+        stat += '<div class="st" title="该英雄在场的 %d 个棋盘里，拿着 3 件成装的占 %.0f%%。这是玩家把装备给谁，不说明给它装备更能赢">满装率 %.0f%%</div>' % (
+            n, ic.get(3, 0) / n * 100, ic.get(3, 0) / n * 100)
     tags = "".join("<i>%s</i>" % e(t) for t in r["traits"])
     return ('<div class="ch" data-k="%s" data-cost="%s" data-pos="%s" style="--c:%s"><div class="ph"><img src="%s" alt="%s" loading="lazy" onerror="this.style.opacity=.2">'
             '<em>%s</em></div><div class="nm">%s</div><div class="tg">%s</div>%s%s%s</div>') % (
@@ -64,7 +69,7 @@ def matrix(meta, roster, key, order, us, total, sid, title):
         sub = ('<small>%s</small>' % e("、".join(solo))) if n == "单一英雄种族" else ""
         rows.append(('<div class="trow"><div class="tn">%s<small>%d 名英雄</small>' + sub + '</div>%s</div>') % (
             e(n), len({r["id"] for p in g[n].values() for r in p}), "".join(cols)))
-    return '<section id="%s"><h2>%s</h2><div class="legend">前排 / 中排 / 后排为本站人工标注 · 均名、前四、选率来自对局结束时的最终棋盘：高费卡、后期才成型的卡天然名次更好，只宜在同费用内参考，不代表强度 · 二/三件装为该英雄出场最多的组合，百分比为吃鸡率（第 1 名比例，全体基线 12.5%%），场次见悬停提示</div>%s</section>' % (sid, title, "".join(rows))
+    return '<section id="%s"><h2>%s</h2><div class="legend">前排 / 中排 / 后排为本站人工标注 · 均名、前四、选率来自对局结束时的最终棋盘：高费卡、后期才成型的卡天然名次更好，只宜在同费用内参考，不代表强度 · 满装率 = 该英雄在场的棋盘里拿着 3 件成装的比例：玩家把装备给谁，不说明给它装备更能赢 · 二/三件装为该英雄出场最多的组合，百分比为吃鸡率（第 1 名比例，全体基线 12.5%%），场次见悬停提示</div>%s</section>' % (sid, title, "".join(rows))
 
 def main():
     ap = argparse.ArgumentParser()

@@ -158,6 +158,7 @@ def build_roster(champs_zh, unit_builds, costs, manual):
             "icon": cdragon_asset_url(path),
             "top2": pairs[0] if pairs else None,
             "top3": trios[0] if trios else None,
+            "item_counts": builds.get("itemCountData") or [],  # boards by # of finished items the unit holds
         })
     return roster
 

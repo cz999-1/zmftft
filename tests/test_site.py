@@ -34,6 +34,7 @@ class Site(unittest.TestCase):
                 for name, html in pages.items():
                     self.assertNotIn(gone, html, name)
             self.assertIn("人工标注", pages["class.html"])
+            self.assertIn("满装率", pages["class.html"])
 
     def check_catches(self, mutate, needle):
         snap, manual = copy.deepcopy(self.snap), copy.deepcopy(self.manual)
