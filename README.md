@@ -45,7 +45,7 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
   - `craft.py`：从 Community Dragon 读取当前赛季配方，生成装备合成矩阵、纹章、冠冕
   - `build_site.py`：把以上内容组装成多页站点（共享顶部导航，内联 CSS/JS）：`index.html` 首页（下线说明 + 各页入口）、`class.html` 职业站位、`origin.html` 种族站位（只有 1 名英雄的种族合并为「单一英雄种族」一行）、`craft.html` 装备合成；页面间用相对链接互跳，旧的 `#craft` 等锚点会自动跳到新页面
 - **部署**：4 个 `*.html` 推到 `main`，由 GitHub Pages 直接托管
-  - 根目录的 `riot.txt` 是 Riot 开发者平台验证本站网址用的（申请 production key，2026-11-01 在 GitHub 网页上提交）。构建不碰它；不要删除或修改，`tests/test_site.py` 会检查它还在、内容没变（只忽略结尾一个换行）
+  - 根目录的 `riot.txt` 是 Riot 开发者平台验证本站网址用的：申请 production key 时 Riot 给的验证码，文件里只有这串码。2026-11-01 重填申请后换过一次码。构建不碰它；只在 Riot 换码时改它，同时改 `tests/test_site.py` 里的 `RIOT_TXT`。测试会检查它还在、内容没变（只忽略结尾一个换行）
 
 ### 数据从哪来（分工）
 | 来源 | 角色 |

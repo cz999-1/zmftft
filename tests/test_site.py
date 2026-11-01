@@ -121,9 +121,10 @@ class Site(unittest.TestCase):
             self.assertTrue(Path(d, "failed_snapshot.json").exists())
 
 
-# riot.txt as committed in 06a98ff (GitHub web editor, 2026-11-01). Riot's developer portal reads it at the
-# site root to verify the product URL for the production key. If Riot issues a new code, change both.
-RIOT_TXT = b"89be27aa-e7ce-41c6-aa42-5eff171a1b2b\n"
+# riot.txt as committed: the code Riot issued on 2026-11-01 when the production-key application was refilled
+# (it replaced the code of 06a98ff); Riot asks for the code alone, so no final newline. Riot's developer portal
+# reads it at the site root to verify the product URL. If Riot issues a new code, change both.
+RIOT_TXT = b"d7cdbf33-835b-4866-b5ee-885d02264391"
 
 
 def one_final_newline_off(b):
