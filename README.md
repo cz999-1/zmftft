@@ -113,7 +113,7 @@ git add *.html synergy README.md && git commit -m "refresh data" && git push
 
 ## 致谢
 
-数据与图标来自 tactics.tools 与 Community Dragon。本项目与 Riot Games 无关；《云顶之弈》及相关素材版权归 Riot Games 所有。
+数据与图标来自 tactics.tools 与 Community Dragon。本项目与 Riot Games 无关；《云顶之弈》及相关素材版权归 Riot Games 所有。每个页面的页脚都有 Riot 对粉丝作品要求的声明，原文照抄自 [riotgames.com/en/legal](https://www.riotgames.com/en/legal)（Legal Jibber Jabber 第 6 条），只填入了本站名称。
 
 ## Set 迁移清单（新赛季上线时）
 

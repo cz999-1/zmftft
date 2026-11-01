@@ -47,6 +47,9 @@ class Site(unittest.TestCase):
             self.assertIn("满装率", pages["class.html"])
             allpages = list(pages.values()) + [p.read_text(encoding="utf-8") for p in Path(d, "synergy").glob("*.html")]
             self.assertFalse([h for h in allpages if "communitydragon.org/latest/" in h])
+            import html
+            self.assertTrue(all(html.escape(build_site.RIOT_NOTICE) in h for h in allpages))  # Riot's notice on every page
+            self.assertFalse([h for h in allpages if "build_site.py" in h])  # build commands live in the README
             self.assertTrue(all("communitydragon.org/16.21/" in h for h in allpages if "<img" in h))
 
     def check_catches(self, mutate, needle):

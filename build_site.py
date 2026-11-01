@@ -112,7 +112,7 @@ def render(snap, out):
               "craft.html": craft.section([tuple(c) for c in snap["craft"]["components"]], {tuple(r["pair"]): r for r in snap["craft"]["recipes"]}, m["set"])[0]}
     syn_mat, syn_pages = synergy.build(comps, roster, origin_order, total, face, U, None)
     bodies["synergy.html"] = syn_mat
-    tpl = TPL
+    tpl = TPL.replace("{{RIOT_NOTICE}}", e(RIOT_NOTICE))
     for k, v in (("{{SET}}", m["set"]), ("{{PATCH}}", m["patch_label"] or "tactics.tools 编号 %s" % m["patch"]),
                  ("{{SCOPE}}", ("排位 · %s" % m["rank_label"] if m["rank_label"] else "分段未注明") + " · 地区未注明"),
                  ("{{N}}", "{:,}".format(total)), ("{{DATE}}", (m["last_updated"] or m["fetched_at"]).replace("T", " ")[:16] + " UTC")):
@@ -131,6 +131,11 @@ def render(snap, out):
         (out / fn).write_text(doc, encoding="utf-8")
         print("done →", out / fn, len(doc), "bytes")
     print(len(roster), "champions;", len(comps), "comps")
+
+# Riot's notice for fan projects, copied from https://www.riotgames.com/en/legal ("Legal Jibber Jabber",
+# section 6, last updated August 2018; read 2026-11-01). Only "[The title of your Project]" is filled in.
+RIOT_NOTICE = ("云顶攻略台 zmftft was created under Riot Games' \"Legal Jibber Jabber\" policy using assets owned by Riot Games.  "
+               "Riot Games does not endorse or sponsor this project.")
 
 # 下线说明（2026-11-01）：最强阵容、冷门高胜率、三星价值、羁绊强度、站位结论、阵眼标签
 REMOVED = '''<section id="ins"><h2>说明</h2><div class="box"><p>首页的「最强阵容」「冷门高胜率」「三星价值」「羁绊强度」、种族页的「站位结论」和英雄卡上的「阵眼」标签已下线。</p>
@@ -203,7 +208,7 @@ footer{color:var(--mu);border-top:1px solid var(--bd);padding:24px 0 60px;font-s
 {{FILTERS}}
 </header>
 {{BODY}}
-<footer>新版本重新生成：<code>python3 build_site.py --no-cache</code>（生成全部页面） 然后 <code>git push</code>。非官方粉丝站，数据仅供参考。</footer></div>
+<footer>非官方粉丝站，数据仅供参考。<br>{{RIOT_NOTICE}}</footer></div>
 <script>
 (function(){
   var state={q:'',cost:'',pos:'',sec:''};
