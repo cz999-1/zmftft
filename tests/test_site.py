@@ -77,6 +77,27 @@ class Site(unittest.TestCase):
         cls_names = {n for _, n in self.manual["classes"]}
         self.assertTrue(any(("× %s</h2>" % n) in dd for dd in details for n in cls_names))
 
+    def test_synergy_marks_single_five_cost_traits(self):
+        """羁绊 with exactly one unit of cost 5 get the orange s5/s5c marking — 五费英雄搭配什么都强,
+        so those rows/columns carry little information (owner, 2026-11-01). A solo 4-cost stays unmarked."""
+        import synergy
+        roster = [
+            {"id": "u1", "name": "U1", "cost": 5, "pos": "back", "origins": ["独五"], "classes": ["法师"]},
+            {"id": "u2", "name": "U2", "cost": 2, "pos": "front", "origins": ["群族"], "classes": ["法师"]},
+            {"id": "u3", "name": "U3", "cost": 3, "pos": "front", "origins": ["群族"], "classes": ["斗士"]},
+            {"id": "u4", "name": "U4", "cost": 4, "pos": "mid", "origins": ["独四"], "classes": ["斗士"]},
+        ]
+        comps = [{"units": ["u1", "u2", "u3", "u4"], "count": 100, "place": 4.0, "top4": 50, "win": 13}]
+        um = {r["id"]: r for r in roster}
+        mat, _ = synergy.build(comps, roster, ["独五", "群族", "独四"], ["法师", "斗士"],
+                               1000, lambda u, s="": "", um.get)
+        self.assertIn('<th class="rh s5" title="独五：', mat)
+        self.assertIn('<th class="vh s5" title="独五：', mat)
+        self.assertIn('<th class="rh" title="独四：', mat)   # solo but 4-cost: unmarked
+        self.assertIn("只有一个五费英雄", mat)              # header tooltip carries the reason
+        self.assertIn('<td class="s5c"><a', mat)
+        self.assertIn('class="s5l"', mat)                    # legend in the hint
+
     def test_heroes_page_is_labelled_and_degrades_without_riot_data(self):
         """The heroes page (owner request 2026-11-01) shows 均名/吃鸡率 with n, grade and the
         survivorship note on every build; without --riot data the hover panel says so."""

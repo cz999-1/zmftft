@@ -4,7 +4,8 @@
 一格 A×B = 同时带 A 和 B 的所有阵容；变体 = 该阵容中属于 A 或 B 的英雄集合。
 指标: 均名(按场次加权) / 吃鸡率（页内按钮切换，无 JS 时显示均名）+ 选率 = 场次 / 总对局棋盘数。
 均名与吃鸡率都来自最终棋盘，只和主流阵容的基线比，不代表强度。
-行/列标题的 title 显示该羁绊前/中/后排各有几个不同英雄（站位为本站人工标注）。"""
+行/列标题的 title 显示该羁绊前/中/后排各有几个不同英雄（站位为本站人工标注）。
+只有一个五费英雄的羁绊整行/列标橙：五费英雄搭配什么都强，这类格子参考价值低。"""
 import hashlib
 from html import escape as e
 from itertools import combinations, product
@@ -23,6 +24,15 @@ def pos_title(name, roster, key):
         if name in r[key] and r["pos"] in by:
             by[r["pos"]].add(r["id"])
     return "%s：%s" % (name, " · ".join("%s %d" % (lab, len(by[p])) for p, lab in POS))
+
+def _solo5(order, roster, key):
+    """只有一个英雄、且该英雄费用 >= 5 的羁绊（标记用：五费英雄搭配什么都强）。"""
+    out = set()
+    for t in order:
+        us = [r for r in roster if t in r[key]]
+        if len(us) == 1 and (us[0].get("cost") or 0) >= 5:
+            out.add(t)
+    return out
 
 def _tally(s, b, n):
     s[0] += n; s[1] += b["place"] * n; s[2] += b["top4"]; s[3] += b["win"]
@@ -54,9 +64,13 @@ def build(comps, roster, ori_order, cls_order, total, face, U):
     wbase = sum(c["win"] for c in comps) / nb * 100  # 主流阵容棋盘的总吃鸡率（对 12.5% 均匀基线）
     ot = {o: pos_title(o, roster, "origins") for o in ori_order}
     ct = {c: pos_title(c, roster, "classes") for c in cls_order}
+    s5o = _solo5(ori_order, roster, "origins")
+    s5c = _solo5(cls_order, roster, "classes")
+    for t in s5o: ot[t] += "；只有一个五费英雄"
+    for t in s5c: ct[t] += "；只有一个五费英雄"
     detail = {}
 
-    def td(k, vs):
+    def td(k, vs, mark=False):
         n = sum(s[0] for s in vs.values())
         if not n: return '<td class="na">·</td>'
         sg = slug(*k)
@@ -65,31 +79,35 @@ def build(comps, roster, ori_order, cls_order, total, face, U):
         pl = sum(s[1] for s in vs.values()) / n
         wn = sum(s[3] for s in vs.values()) / n * 100
         detail[sg] = (k, vs)
-        return ('<td><a href="synergy/%s.html" title="%s × %s · 均名 %.2f · 吃鸡率 %.1f%% · %d 个棋盘 · %d 种组合">'
+        return ('<td%s><a href="synergy/%s.html" title="%s × %s · 均名 %.2f · 吃鸡率 %.1f%% · %d 个棋盘 · %d 种组合">'
                 '<b class="mp">%.2f</b><b class="mw">%.0f%%</b><small>%.1f%%</small></a></td>') % (
-            sg, e(k[0]), e(k[1]), pl, wn, n, len(vs), pl, wn, n / total * 100)
+            ' class="s5c"' if mark else '', sg, e(k[0]), e(k[1]), pl, wn, n, len(vs), pl, wn, n / total * 100)
 
     order1 = [o for o in ori_order if any(o in k for k in oo)]
-    head = "".join('<th class="vh" title="%s"><span>%s</span></th>' % (e(ot[o]), e(o)) for o in order1)
+    head = "".join('<th class="vh%s" title="%s"><span>%s</span></th>' % (
+        " s5" if o in s5o else "", e(ot[o]), e(o)) for o in order1)
     rows = []
     for i, a in enumerate(order1):
         tds = []
         for j, b in enumerate(order1):
             if i == j: tds.append('<td class="dg"></td>'); continue
             k = (a, b) if i < j else (b, a)
-            tds.append(td(k, oo.get(k, {})))
-        rows.append('<tr><th class="rh" title="%s">%s</th>%s</tr>' % (e(ot[a]), e(a), "".join(tds)))
+            tds.append(td(k, oo.get(k, {}), a in s5o or b in s5o))
+        rows.append('<tr><th class="rh%s" title="%s">%s</th>%s</tr>' % (
+            " s5" if a in s5o else "", e(ot[a]), e(a), "".join(tds)))
     sec1 = '''<section id="syn"><h2>种族 × 种族 搭配矩阵</h2>
-<p class="hint">格内：<b>均名</b>或<b>吃鸡率</b>（上方按钮切换，两个矩阵一起切）+ 选率。点格子看该搭配下所有英雄组合。灰对角线=同种族；“·”=无样本。悬停行/列标题看该羁绊的前/中/后排英雄数（本站人工标注）。<br>
+<p class="hint">格内：<b>均名</b>或<b>吃鸡率</b>（上方按钮切换，两个矩阵一起切）+ 选率。点格子看该搭配下所有英雄组合。灰对角线=同种族；“·”=无样本。悬停行/列标题看该羁绊的前/中/后排英雄数（本站人工标注）。<b class="s5l">橙色</b> = 该羁绊只有一个五费英雄：五费英雄搭配什么都强，这类行/列参考价值低。<br>
 口径：阵容中某种族英雄 ≥2（单一英雄种族 ≥1）即算“带了”该种族。数据是 tactics.tools 的主流阵容，共 %s 个棋盘（全部 %s 个棋盘的 %.1f%%），它们的平均名次是 <b>%.2f</b>、吃鸡率是 <b>%.1f%%</b>（均匀基线 12.5%%），格内数字要和这两个数比，不是和 4.5 或 12.5%% 比。均名和吃鸡率都来自对局结束时的最终棋盘，数字好的搭配多半是“这局本来就在赢”的棋盘，不说明照这样搭就能赢。选率 = 场次 / 全部棋盘数。</p>
 <div class="smx"><table class="syn"><tr><th></th>%s</tr>%s</table></div></section>''' % (
         "{:,}".format(nb), "{:,}".format(total), nb / total * 100, base, wbase, head, "".join(rows))
     if oc:
         orows = [o for o in ori_order if any(k[0] == o for k in oc)]
         ocols = [c for c in cls_order if any(k[1] == c for k in oc)]
-        head2 = "".join('<th class="vh" title="%s"><span>%s</span></th>' % (e(ct[c]), e(c)) for c in ocols)
-        rows2 = "".join('<tr><th class="rh" title="%s">%s</th>%s</tr>' % (
-            e(ot[a]), e(a), "".join(td((a, c), oc.get((a, c), {})) for c in ocols)) for a in orows)
+        head2 = "".join('<th class="vh%s" title="%s"><span>%s</span></th>' % (
+            " s5" if c in s5c else "", e(ct[c]), e(c)) for c in ocols)
+        rows2 = "".join('<tr><th class="rh%s" title="%s">%s</th>%s</tr>' % (
+            " s5" if a in s5o else "", e(ot[a]), e(a),
+            "".join(td((a, c), oc.get((a, c), {}), a in s5o or c in s5c) for c in ocols)) for a in orows)
         body2 = '<div class="smx"><table class="syn"><tr><th></th>%s</tr>%s</table></div>' % (head2, rows2)
     else:
         body2 = '<p class="hint">没有达到口径的种族 × 职业搭配。</p>'
@@ -124,4 +142,5 @@ CSS = '''.smx{overflow:auto}table.syn{border-collapse:collapse;font-size:12px}.s
 .syn td a{display:block;color:inherit;text-decoration:none;padding:3px}.syn td a:hover{background:var(--pn2)}.syn small{display:block;color:var(--mu);font-size:10px}
 .syn .dg{background:#222a35}.syn .na{color:#444}
 #synx b.mw{display:none}#synx.m-win b.mp{display:none}#synx.m-win b.mw{display:inline}
+.syn .s5{color:#d9a24d}.hint .s5l{color:#d9a24d}.syn td.s5c{background:rgba(217,162,77,.08)}.syn td.s5c a b{color:#d9a24d}
 table.vt{border-collapse:collapse;width:100%}.vt td,.vt th{border-bottom:1px solid var(--bd);padding:6px;text-align:center}.vt .us{text-align:left}'''
