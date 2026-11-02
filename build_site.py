@@ -99,11 +99,130 @@ def matrix(meta, roster, key, order, us, total, sid, title):
             e(n), len({r["id"] for p in g[n].values() for r in p}), "".join(cols)))
     return '<section id="%s"><h2>%s</h2><div class="legend">前排 / 中排 / 后排为本站人工标注 · 选率 = 出现该英雄的最终棋盘占全部棋盘的比例 · 满装率 = 该英雄在场的棋盘里拿着 3 件成装的比例：玩家把装备给谁，不说明给它装备更能赢 · 二/三件装为该英雄出场最多的组合，百分比为吃鸡率（第 1 名比例，全体基线 12.5%%），场次见悬停提示 · 悬停（手机上点按）装备图标看合成配方</div>%s</section>' % (sid, title, "".join(rows))
 
+PLACE_SD = 2.29  # 单局名次的标准差（1–8 均匀分布）；英雄页图例里的区间上界用它
+
+
+def check_riot(snap, riot):
+    """自采数据（tft-lab 的 heroes 导出）的护栏：对不上就不构建。"""
+    if not str(riot.get("schema", "")).startswith("tftlab-heroes/"):
+        raise SystemExit("--riot 文件不是 tftlab-heroes 导出（schema=%r）" % riot.get("schema"))
+    rset = (riot.get("population") or {}).get("set")
+    if rset != snap["meta"]["set"]:
+        raise SystemExit("--riot 数据是 Set %s，快照是 Set %s" % (rset, snap["meta"]["set"]))
+    fams = {f["id"] for f in riot.get("families") or []}
+    for u, d in (riot.get("units") or {}).items():
+        for c in d.get("cells") or []:
+            if c["family"] not in fams:
+                raise SystemExit("--riot 单元格引用了不存在的阵容组 %s（%s）" % (c["family"], u))
+
+
+def riot_label(riot):
+    """自采样本的一行说明，全部取自导出文件本身。"""
+    pop = riot.get("population") or {}
+    tiers = "/".join(sorted(pop.get("known_rank_boards") or {})) or "?"
+    win = " → ".join((w or "")[:10] for w in (pop.get("window_utc") or ["", ""]))
+    base = "自采 Riot API · %s · 种子段位 %s（对手段位未知）· %s (UTC) · %s 盘 · n<%d 的格子不显示 · C 级描述" % (
+        "/".join(pop.get("platforms") or pop.get("hosts") or ["?"]), tiers, win,
+        "{:,}".format(pop.get("boards") or 0), riot["params"]["min_n"])
+    if riot.get("publishable") is False:
+        base += " · 开发 key 数据，仅本地预览"
+    return base
+
+
+def hero_panel(r, b, riot, fams, runits, U):
+    """悬停面板：星级数据（tactics.tools）+ 3★ 满装所在阵容（自采，可缺）。"""
+    star = "".join('<tr><td>%d★</td><td>%s 盘</td><td>均名 %.2f</td><td>吃鸡 %.1f%%</td></tr>' % (
+        srow["id"], "{:,}".format(srow["count"]), srow["place"], srow["won"])
+        for srow in b.get("starLevelData") or [] if srow.get("count"))
+    star = ('<div class="hp-s">星级数据 <small>tactics.tools</small><table>%s</table></div>' % star) if star else ""
+    if riot:
+        ru = runits.get(r["id"])
+        mn = riot["params"]["min_n"]
+        if not ru:
+            body = '<p class="emp3">自采样本里没有该英雄的 3★ 满装棋盘</p>'
+        elif not ru["cells"]:
+            body = '<p class="emp3">自采样本不足：3★ 满装共 %d 盘，没有 n ≥ %d 的阵容格子</p>' % (ru["n_star3_full"], mn)
+        else:
+            cells = []
+            for c in ru["cells"][:3]:
+                faces = "".join(face(U(uid), "sm") for uid in fams[c["family"]]["units"])
+                cells.append('<div class="hpc"><div class="fcs">%s</div><div class="cst">均名 <b>%.2f</b> '
+                             '<small>(95%% %.2f–%.2f)</small> · 吃鸡 %.0f%% · %s 盘</div></div>' % (
+                                 faces, c["place_mean"], c["place_ci95"][0], c["place_ci95"][1],
+                                 c["top1"] * 100, "{:,}".format(c["n_boards"])))
+            sup = ('；%d 组 n &lt; %d 不显示' % (ru["suppressed_cells"], mn)) if ru["suppressed_cells"] else ""
+            unm = ('；未归入任何阵容组 %d 盘' % ru["unmatched_boards"]) if ru["unmatched_boards"] else ""
+            body = "".join(cells) + '<p class="hint">该英雄 3★ 满装共 %d 盘%s%s</p>' % (ru["n_star3_full"], sup, unm)
+        rp = '<div class="hp-s">3★ 满装 · 所在阵容<small>（按均名排，自采样本）</small>%s</div>' % body
+    else:
+        rp = '<div class="hp-s">3★ 满装 · 所在阵容<p class="emp3">暂无自采样本（构建时未提供 --riot 数据）</p></div>'
+    warn = '<p class="hint">能亮出三星和满装的棋盘本来就活得久：以下是结果的描述，不是打法建议。</p>'
+    return '<div class="hp"><div class="hp-t">%s</div>%s%s%s</div>' % (e(r["name"]), warn, star, rp)
+
+
+def heroes_page(meta, roster, us, total, ub, riot, U):
+    """英雄数据页：每行一个英雄（选率 / 吃鸡率 / 均名 + 最高吃鸡率出装），排序和筛选在浏览器里做。
+    riot = tft-lab 自采导出（python -m tftlab.report.heroes_export），缺了页面照常构建。"""
+    have = [r for r in roster if us.get(r["id"])]
+    min_n = min((us[r["id"]]["count"] for r in have), default=0)
+    hw_place = 1.96 * PLACE_SD / (min_n ** 0.5) if min_n else 0.0
+    hw_won = 196 * (0.125 * 0.875 / min_n) ** 0.5 if min_n else 0.0
+    fams = {f["id"]: f for f in (riot or {}).get("families") or []}
+    runits = (riot or {}).get("units") or {}
+    rows = []
+    for r in sorted(have, key=lambda x: -(us[x["id"]].get("won") or 0)):
+        s = us[r["id"]]
+        b = ub.get(r["id"]) or {}
+        sel = s["count"] / total * 100
+        best2, fb2 = (b.get("bestPair"), False) if b.get("bestPair") else ((b.get("itemPairs") or [None])[0], True)
+        best3, fb3 = (b.get("bestTrio"), False) if b.get("bestTrio") else ((b.get("itemTrios") or [None])[0], True)
+        tags = "".join("<i>%s</i>" % e(t) for t in r["traits"])
+        rows.append(
+            '<div class="hrow" data-k="%s" data-cost="%s" data-sel="%.3f" data-win="%.3f" data-place="%.3f">'
+            '<span class="hrk"></span><div class="hface">%s%s</div>'
+            '<div class="hid"><div class="nm">%s</div><div class="tg">%s</div></div>'
+            '<div class="hst"><span>选率 <b>%.1f%%</b></span><span>吃鸡率 <b>%.1f%%</b></span>'
+            '<span>均名 <b>%.2f</b></span><small>%s 盘</small></div>'
+            '<div class="hbd">%s%s</div></div>' % (
+                e(r["name"] + " " + " ".join(r["traits"])), r["cost"] or "", sel, s["won"] or 0, s["place"] or 9,
+                face(r), hero_panel(r, b, riot, fams, runits, U), e(r["name"]), tags,
+                sel, s["won"] or 0, s["place"] or 0, "{:,}".format(s["count"]),
+                build_html(meta, best2, "二*" if fb2 and best2 else "二"),
+                build_html(meta, best3, "三*" if fb3 and best3 else "三")))
+    riot_line = ""
+    if riot:
+        riot_line = ('<p class="hint">悬停面板的「3★ 满装 · 所在阵容」：%s。阵容组 = tactics.tools 阵容页的 %d 组'
+                     '（组内为同一阵容的变体）；棋盘按「与任一变体重合 ≥ %d 个英雄」归组，重合不足记为未归组。</p>'
+                     % (e(riot_label(riot)), len(fams), riot["params"]["min_overlap"]))
+        if riot.get("publishable") is False:
+            riot_line += ('<p class="hint" style="color:var(--bad)">注意：自采部分来自开发 key，按 Riot 开发者政策不可用于'
+                          '公开网站——这份构建仅限本地预览，不要推送上线。</p>')
+    legend = (
+        '<p>选率 = 出现该英雄的最终棋盘占全部棋盘的比例 · 吃鸡率 = 第 1 名比例（全体基线 12.5%%）· 均名 = 平均名次（1–8）。'
+        '每行标注棋盘数；本页最小样本 %s 盘，均名 95%% 区间半宽 ≤ %.2f 名、吃鸡率 ≤ ±%.1f 个百分点。评级 C（描述性）。</p>'
+        '<p class="hint">这些数字只看对局结束时的最终棋盘：活得越久越容易凑出三星、满装与高费卡，所以高数值主要说明'
+        '「这局本来就在赢」，不说明「照这样玩能赢」；跨费用对比主要反映费用差异，比较请先按费用筛选。'
+        '「二」「三」= 场数 ≥ %d 的二/三件装组合里吃鸡率最高者（带 * 的样本不足，改显示最常见组合；场次见悬停提示）——'
+        '相关非因果。悬停（手机上点按）头像看星级数据与 3★ 满装所在阵容，装备图标看合成配方。</p>'
+        % ("{:,}".format(min_n), hw_place, hw_won, 500)) + riot_line
+    tb = ('<div class="filters" id="htools"><div class="fg"><span class="fl">排序</span>'
+          '<button type="button" class="fb on" data-f="s" data-v="win">吃鸡率</button>'
+          '<button type="button" class="fb" data-f="s" data-v="sel">选率</button>'
+          '<button type="button" class="fb" data-f="s" data-v="place">均名</button></div>'
+          '<div class="fg"><span class="fl">费用</span>' + "".join(
+              '<button type="button" class="fb%s" data-f="cost" data-v="%s">%s</button>'
+              % (" on" if v == "" else "", v, t)
+              for v, t in (("", "全部"), ("1", "1"), ("2", "2"), ("3", "3"), ("4", "4"), ("5", "5"))) + "</div></div>")
+    return ('<section id="heroes"><h2>英雄数据</h2><div class="box">%s</div>%s<div id="hlist">%s</div></section>%s'
+            % (legend, tb, "".join(rows), HERO_JS))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=".", help="输出目录")
     ap.add_argument("--no-cache", action="store_true", help="忽略 cache/raw/ 重新抓取")
     ap.add_argument("--data", help="只用这个快照渲染、不联网，例如 cache/snapshots/set18/18.5c.json")
+    ap.add_argument("--riot", help="tft-lab 的 heroes 导出 JSON（自采对局）：英雄页悬停面板的数据")
     a = ap.parse_args()
     if a.data:
         path = Path(a.data)
@@ -111,11 +230,16 @@ def main():
     else:
         path = fetch_data.save(fetch_data.make_snapshot(fetch_data.collect_raw(a.no_cache)))
         print("snapshot →", path)
-    render(fetch_data.load(path), Path(a.out))
+    riot = json.loads(Path(a.riot).read_text(encoding="utf-8")) if a.riot else None
+    if riot is not None and riot.get("publishable") is False:
+        print("注意：--riot 数据标记为不可公开（开发 key）——本次构建仅限本地预览，不要推送上线")
+    render(fetch_data.load(path), Path(a.out), riot)
     print("snapshot sha256", fetch_data.sha256(path), "（README「页面数据快照」里记的应是这个值）")
 
-def render(snap, out):
-    """页面只读快照，不联网。"""
+def render(snap, out, riot=None):
+    """页面只读快照（和可选的 --riot 自采导出），不联网。"""
+    if riot is not None:
+        check_riot(snap, riot)
     m = snap["meta"]; us = snap["unit_stats"]; total = m["total"]
     manual = load_manual(m["set"])
     costs = {k: v["cost"] for k, v in snap["official"]["units"].items()}
@@ -137,31 +261,35 @@ def render(snap, out):
     links = '<section id="go"><h2>去哪看</h2><div class="grid three">' + "".join(
         '<a class="box golink" href="%s"><h3>%s</h3><p class="hint">%s</p></a>' % x for x in PAGES[1:]) + '</div></section>'
     bodies = {"index.html": REMOVED + links + "<script>var H={'#craft':'craft.html','#cls':'class.html','#ori':'origin.html','#ver':'origin.html'};if(H[location.hash])location.replace(H[location.hash]);</script>", "class.html": cls_html, "origin.html": ori_html, "synergy.html": "",
+              "heroes.html": heroes_page(meta, roster, us, total, snap["unit_builds"], riot, U),
               "craft.html": craft.section([tuple(c) for c in snap["craft"]["components"]], {tuple(r["pair"]): r for r in snap["craft"]["recipes"]}, m["set"])[0]}
-    syn_mat, syn_pages = synergy.build(comps, roster, origin_order, total, face, U, None)
+    syn_mat, syn_pages = synergy.build(comps, roster, origin_order,
+                                       [c for c in class_order if c != NO_CLASS], total, face, U)
     bodies["synergy.html"] = syn_mat
     tpl = TPL.replace("{{RIOT_NOTICE}}", e(RIOT_NOTICE)).replace("{{RIOT_BOILERPLATE}}", e(RIOT_BOILERPLATE))
     for k, v in (("{{SET}}", m["set"]), ("{{PATCH}}", m["patch_label"] or "tactics.tools 编号 %s" % m["patch"]),
                  ("{{SCOPE}}", ("排位 · %s" % m["rank_label"] if m["rank_label"] else "分段未注明") + " · 地区未注明"),
                  ("{{N}}", "{:,}".format(total)), ("{{DATE}}", (m["last_updated"] or m["fetched_at"]).replace("T", " ")[:16] + " UTC")):
         tpl = tpl.replace(k, e(v))
-    # pages with item icons get the recipe tooltip: its data (only the items shown) and its CSS/JS; other pages stay as they were
-    tip_ids = sorted({i for r in roster for b in (r["top2"], r["top3"]) if b for i in build_ids(b)})
-    tips = {"c": {c: [n, i] for c, n, i in snap["craft"]["components"]}, "i": item_tips(meta, snap["craft"], tip_ids)}
-    tips_json = json.dumps(tips, ensure_ascii=False, sort_keys=True, separators=(",", ":")).replace("</", "<\\/")
-    tpl_items = tpl.replace("{{TIPCSS}}", TIP_CSS).replace("{{ITEMTIPS}}", '<script type="application/json" id="itd">%s</script>%s' % (tips_json, TIP_JS))
-    tpl_plain = tpl.replace("{{TIPCSS}}", "").replace("{{ITEMTIPS}}", "")
+    # pages with item icons get the recipe tooltip; #itd is built per page so it holds exactly the items that page shows
+    def finish(body):
+        ids = sorted(set(re.findall(r'data-it="([^"]+)"', body)))
+        if not ids:
+            return tpl.replace("{{TIPCSS}}", "").replace("{{ITEMTIPS}}", "")
+        tips = {"c": {c: [n, i] for c, n, i in snap["craft"]["components"]}, "i": item_tips(meta, snap["craft"], ids)}
+        tips_json = json.dumps(tips, ensure_ascii=False, sort_keys=True, separators=(",", ":")).replace("</", "<\\/")
+        return tpl.replace("{{TIPCSS}}", TIP_CSS).replace("{{ITEMTIPS}}", '<script type="application/json" id="itd">%s</script>%s' % (tips_json, TIP_JS))
     out.mkdir(parents=True, exist_ok=True); (out / "synergy").mkdir(exist_ok=True)
     for old in (out / "synergy").glob("*.html"): old.unlink()
     for fn, (t, body) in syn_pages.items():
         nav = "".join('<a href="../%s"%s>%s</a>' % (f, ' class="cur"' if f == "synergy.html" else "", tt) for f, tt, _ in PAGES)
-        doc = (tpl_items if 'data-it="' in body else tpl_plain).replace("{{CRAFTCSS}}", craft.CSS + synergy.CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", t).replace("{{FILTERS}}", "").replace("{{SEARCH}}", "").replace("{{BODY}}", body).replace('href="index.html"', 'href="../index.html"')
+        doc = finish(body).replace("{{CRAFTCSS}}", craft.CSS + synergy.CSS + HERO_CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", t).replace("{{FILTERS}}", "").replace("{{SEARCH}}", "").replace("{{BODY}}", body).replace('href="index.html"', 'href="../index.html"')
         (out / fn).write_text(doc, encoding="utf-8")
     for fn, title, _ in PAGES:
         nav = "".join('<a href="%s"%s>%s</a>' % (f, ' class="cur"' if f == fn else "", t) for f, t, _ in PAGES)
         filt = FILTERS if fn in ("class.html", "origin.html") else ""
-        search = SEARCH if filt else ""
-        doc = (tpl_items if 'data-it="' in bodies[fn] else tpl_plain).replace("{{CRAFTCSS}}", craft.CSS + synergy.CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", title).replace("{{FILTERS}}", filt).replace("{{SEARCH}}", search).replace("{{BODY}}", bodies[fn])
+        search = SEARCH if filt or fn == "heroes.html" else ""
+        doc = finish(bodies[fn]).replace("{{CRAFTCSS}}", craft.CSS + synergy.CSS + HERO_CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", title).replace("{{FILTERS}}", filt).replace("{{SEARCH}}", search).replace("{{BODY}}", bodies[fn])
         (out / fn).write_text(doc, encoding="utf-8")
         print("done →", out / fn, len(doc), "bytes")
     print(len(roster), "champions;", len(comps), "comps")
@@ -178,12 +306,14 @@ RIOT_BOILERPLATE = ("云顶攻略台 zmftft isn't endorsed by Riot Games and doe
 
 # 下线说明（2026-11-01）：最强阵容、冷门高胜率、三星价值、羁绊强度、站位结论、阵眼标签
 REMOVED = '''<section id="ins"><h2>说明</h2><div class="box"><p>首页的「最强阵容」「冷门高胜率」「三星价值」「羁绊强度」、种族页的「站位结论」和英雄卡上的「阵眼」标签已下线。</p>
-<p class="hint">它们只看对局结束时的最终棋盘：活得越久越容易凑出三星、满装、高费卡和高档羁绊，所以这些数字主要说明“这局本来就在赢”，不说明“照这样玩能赢”。阵容强度目前还无法从最终棋盘可靠测出，测出之前这里不放排行。</p></div></section>'''
+<p class="hint">它们只看对局结束时的最终棋盘：活得越久越容易凑出三星、满装、高费卡和高档羁绊，所以这些数字主要说明“这局本来就在赢”，不说明“照这样玩能赢”。阵容强度目前还无法从最终棋盘可靠测出，测出之前这里不放排行。</p>
+<p class="hint">想看原始数字：「英雄数据」页提供每个英雄的选率 / 吃鸡率 / 均名、出装与 3★ 满装所在阵容——它们是对结果的描述（逐项标注样本量与上面的偏差），不是强度结论。</p></div></section>'''
 
 PAGES = [("index.html", "首页", "说明与各页入口"),
          ("class.html", "职业站位", "各职业羁绊的前/中/后排英雄与常用出装"),
          ("origin.html", "种族站位", "各种族羁绊的前/中/后排英雄与常用出装"),
-         ("synergy.html", "种族搭配", "种族 × 种族 搭配矩阵（均名、选率），点格子看所有英雄组合"),
+         ("heroes.html", "英雄数据", "全部英雄按选率 / 吃鸡率 / 均名排序，最高吃鸡率出装；悬停看星级数据与 3★ 满装所在阵容"),
+         ("synergy.html", "羁绊搭配", "种族 × 种族、种族 × 职业 搭配矩阵（均名 / 吃鸡率 可切换 + 选率），点格子看所有英雄组合"),
          ("craft.html", "装备合成", "当前赛季散件合成表、纹章与冠冕")]
 FILTERS = r'''<div class="filters" id="filters">
   <div class="fg"><span class="fl">费用</span>
@@ -234,6 +364,63 @@ TIP_JS = r'''<script>
   document.addEventListener('pointerout', function(ev){ if(ev.pointerType==='mouse' && hit(ev)) hide(); });
   document.addEventListener('click', function(ev){ if(!touch) return; var i=hit(ev); if(i && i!==cur) show(i); else hide(); });
   addEventListener('scroll', hide, {passive:true}); addEventListener('resize', hide);
+})();
+</script>'''
+
+# 英雄数据页：行、悬停面板、排序工具条
+HERO_CSS = """
+.hrow{display:grid;grid-template-columns:30px 48px minmax(110px,1fr) auto minmax(230px,1.1fr);gap:10px;align-items:center;background:var(--pn);border:1px solid var(--bd);border-radius:var(--r);padding:8px 12px;margin-bottom:8px}
+.hrk{color:var(--mu);font-size:12px;text-align:right}
+.hface{position:relative;width:44px;height:44px;cursor:help}.hface>.av{width:44px;height:44px}
+.hp{display:none;position:absolute;left:52px;top:-6px;z-index:25;width:370px;max-width:82vw;background:var(--pn2);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.55);font-size:12px;font-weight:400;cursor:auto}
+.hface:hover .hp,.hface.open .hp{display:block}
+.hp-t{font-weight:700;font-size:14px}
+.hp-s{margin-top:8px;border-top:1px solid var(--bd);padding-top:6px;font-weight:700}.hp-s small{color:var(--mu);font-weight:400}
+.hp-s table{width:100%;border-collapse:collapse;font-weight:400;margin-top:4px}.hp-s td{padding:1px 6px 1px 0;color:var(--mu);white-space:nowrap}
+.hpc{font-weight:400;margin:6px 0;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px}
+.hpc .fcs{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px}
+.hpc .cst{color:var(--mu)}.hpc .cst b{color:var(--tx)}
+.hp .hint,.hp .emp3{font-weight:400;color:var(--mu);margin:6px 0 0;font-size:12px}
+.hst{display:flex;gap:14px;align-items:baseline;white-space:nowrap}.hst span{color:var(--mu);font-size:12px}.hst b{color:var(--tx);font-size:14px}.hst small{color:var(--mu)}
+.hbd .bd{margin-top:2px}.hbd .bd b{width:auto;min-width:24px}
+@media(max-width:900px){.hrow{grid-template-columns:24px 44px 1fr}.hst{grid-column:2/4;flex-wrap:wrap;gap:8px 14px}.hbd{grid-column:2/4}
+.hp{position:fixed;left:12px;right:12px;top:14%;width:auto;max-width:none}}
+"""
+HERO_JS = r'''<script>
+(function(){
+  // 英雄数据页：排序 / 费用筛选 / 搜索都只重排显示；悬停（手机上点按）头像看面板
+  var list=document.getElementById('hlist'); if(!list) return;
+  var rows=[].slice.call(list.querySelectorAll('.hrow'));
+  var state={s:'win',cost:'',q:''};
+  function apply(){
+    var vis=[];
+    rows.forEach(function(r){
+      var ok=(!state.cost || r.dataset.cost===state.cost) && (!state.q || r.dataset.k.indexOf(state.q)>=0);
+      r.classList.toggle('hide',!ok); if(ok) vis.push(r);
+    });
+    vis.sort(function(a,b){ var ka=parseFloat(a.dataset[state.s]), kb=parseFloat(b.dataset[state.s]);
+      return state.s==='place' ? ka-kb : kb-ka; });
+    vis.forEach(function(r,i){ r.querySelector('.hrk').textContent=i+1; list.appendChild(r); });
+    rows.forEach(function(r){ if(r.classList.contains('hide')) list.appendChild(r); });
+  }
+  document.getElementById('htools').addEventListener('click', function(ev){
+    var b=ev.target.closest('.fb'); if(!b) return;
+    state[b.dataset.f]=b.dataset.v;
+    b.parentNode.querySelectorAll('.fb').forEach(function(x){ x.classList.toggle('on', x===b); });
+    apply();
+  });
+  var q=document.getElementById('q');
+  if(q) q.addEventListener('input', function(){ state.q=q.value.trim(); apply(); });
+  var touch=false, open=null;
+  document.addEventListener('pointerdown', function(ev){ touch=ev.pointerType!=='mouse'; }, true);
+  document.addEventListener('click', function(ev){
+    if(!touch) return;
+    if(ev.target.closest('.hp')) return;               // 点面板内部（如装备图标）不关闭
+    var f=ev.target.closest('.hface');
+    if(open && open!==f){ open.classList.remove('open'); open=null; }
+    if(f){ f.classList.toggle('open'); open=f.classList.contains('open')?f:null; }
+  });
+  apply();
 })();
 </script>'''
 

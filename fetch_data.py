@@ -16,6 +16,13 @@ RAW = ROOT / "cache" / "raw"
 SNAPSHOTS = ROOT / "cache" / "snapshots"
 MAX_AGE = 6 * 3600
 TOP_BUILDS = 3  # 每个英雄保留的二/三件装组合数（按 tactics.tools 原顺序）
+BEST_MIN_N = 500  # 英雄页「最高吃鸡率」组合的最低场数：场数太少的组合吃鸡率是噪声，不参与挑选
+
+
+def best_build(entries, min_n=BEST_MIN_N):
+    """英雄页用：场数 >= min_n 的组合里吃鸡率最高的一个（并列取场数多的）；都不够场数时 None。"""
+    ok = [x for x in entries if (x.get("count") or 0) >= min_n]
+    return max(ok, key=lambda x: (x.get("won") or 0, x.get("count") or 0)) if ok else None
 
 
 def cached(name, fn, refresh=False, offline=False):
@@ -69,15 +76,17 @@ def make_snapshot(raw):
     mk = detect_set_filter(champs); set_no = set_number(mk)
     f = [c for c in champs if mk.lower() in ((c.get("character_record") or {}).get("squareIconPath") or "").lower()]
     if len(f) >= 20: champs = f
-    builds = {u: {"itemPairs": b["itemPairs"][:TOP_BUILDS], "itemTrios": b["itemTrios"][:TOP_BUILDS], "itemCountData": b["itemCountData"]}
+    builds = {u: {"itemPairs": b["itemPairs"][:TOP_BUILDS], "itemTrios": b["itemTrios"][:TOP_BUILDS],
+                  "bestPair": best_build(b["itemPairs"]), "bestTrio": best_build(b["itemTrios"]),
+                  "starLevelData": b.get("starLevelData") or [], "itemCountData": b["itemCountData"]}
               for u, b in raw["builds"].items()}
-    used = {i for b in builds.values() for k in ("itemPairs", "itemTrios") for x in b[k]
+    used = {i for b in builds.values() for k in ("itemPairs", "itemTrios") for x in b[k] + [b["bestPair"], b["bestTrio"]] if x
             for i in (x["items"] if isinstance(x["items"], list) else [x["items"]])}
     used = {k for i in used for k in (i, i.replace("DA_", ""), i.replace("DA_", "").replace("Artifact_", ""))}
-    comps = []
-    for gr in raw["groups"]:
+    comps = []  # group = tactics.tools 的阵容分组（同组为一套阵容的变体）；英雄页按组聚合
+    for g, gr in enumerate(raw["groups"]):
         for v in gr.values():
-            if isinstance(v, dict): comps += v.get("comps") or []
+            if isinstance(v, dict): comps += [dict(c, group=g) for c in v.get("comps") or []]
     folder = cd_folder(raw["cd_meta"].get("version"))
     components, table = craft.build(raw["cd_tft"], set_no, folder)
     return {
@@ -91,7 +100,8 @@ def make_snapshot(raw):
                              "community_dragon": [CD_ROOT + "/latest/content-metadata.json", CDRAGON + "/zh_cn/v1/tftchampions.json",
                                                   CDRAGON + "/zh_cn/v1/tftitems.json", craft.CD_JSON]}},
         "official": {"units": official_units(raw["cd_tft"], set_no), "traits": official_traits(raw["cd_tft"], set_no)},
-        "unit_stats": {u: {"count": s.get("count")} for u, s in sd["units"].items()},  # cards show 选率 only
+        # 职业/种族页的卡只显示 选率（owner, 2026-11-01）；place/top4/won 只给英雄页用（owner, 2026-11-01 heroes 页决定）
+        "unit_stats": {u: {k: s.get(k) for k in ("count", "place", "top4", "won")} for u, s in sd["units"].items()},
         "champions": [{"character_record": {k: (c.get("character_record") or {}).get(k) for k in ("character_id", "display_name", "squareIconPath", "traits")}} for c in champs],
         "items": [{k: it.get(k) for k in ("nameId", "name", "squareIconPath")} for it in raw["items"] if set(item_keys(it.get("nameId") or "")) & used],
         "unit_builds": builds,

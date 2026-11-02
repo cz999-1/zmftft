@@ -37,7 +37,7 @@ class Site(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             build_site.render(self.snap, Path(d))
             pages = {p.name: p.read_text(encoding="utf-8") for p in Path(d).glob("*.html")}
-            self.assertEqual(set(pages), {"index.html", "class.html", "origin.html", "synergy.html", "craft.html"})
+            self.assertEqual(set(pages), {"index.html", "class.html", "origin.html", "heroes.html", "synergy.html", "craft.html"})
             self.assertTrue(list(Path(d, "synergy").glob("*.html")))
             self.assertIn("版本 %s" % self.snap["meta"]["patch_label"], pages["index.html"])
             for gone in ("阵眼—", "三星价值</h3>", "羁绊强度</h3>", "最强阵容</h3>", "站位结论（"):
@@ -47,7 +47,8 @@ class Site(unittest.TestCase):
             for page in ("class.html", "origin.html"):  # cards: 选率 and 满装率, no 均名 / 前四 (owner, 2026-11-01)
                 self.assertIn("满装率", pages[page]); self.assertIn("选率", pages[page])
                 self.assertNotIn("均名", pages[page]); self.assertNotIn("前四", pages[page])
-                # item icons carry their recipe data (owner, 2026-11-01): one entry per item shown, all components
+            # item icons carry their recipe data (owner, 2026-11-01): per page, one entry per item shown, all components
+            for page in ("class.html", "origin.html", "heroes.html"):
                 tips = json.loads(re.search(r'<script type="application/json" id="itd">(.*?)</script>', pages[page], re.S).group(1))
                 shown = set(re.findall(r'data-it="([^"]+)"', pages[page]))
                 self.assertTrue(shown); self.assertEqual(set(tips["i"]), shown)
@@ -61,6 +62,63 @@ class Site(unittest.TestCase):
             self.assertTrue(all(html.escape(build_site.RIOT_BOILERPLATE) in h for h in allpages))  # and the API boilerplate
             self.assertFalse([h for h in allpages if "build_site.py" in h])  # build commands live in the README
             self.assertTrue(all("communitydragon.org/16.21/" in h for h in allpages if "<img" in h))
+
+    def test_synergy_page_shows_both_matrices_with_the_metric_toggle(self):
+        """种族×职业 matrix beside 种族×种族, a 均名/吃鸡率 cell toggle (no-JS default shows 均名),
+        and front/mid/back-row unit counts in the trait headers' tooltips (owner, 2026-11-01)."""
+        with tempfile.TemporaryDirectory() as d:
+            build_site.render(self.snap, Path(d))
+            h = Path(d, "synergy.html").read_text(encoding="utf-8")
+            details = [p.read_text(encoding="utf-8") for p in Path(d, "synergy").glob("*.html")]
+        for needle in ("种族 × 种族", "种族 × 职业", 'data-v="win"', 'class="mp"', 'class="mw"',
+                       "均匀基线 12.5%", 'id="synx"'):
+            self.assertIn(needle, h)
+        self.assertRegex(h, r'<th class="rh" title="[^"]*前排 \d+ · 中排 \d+ · 后排 \d+')
+        cls_names = {n for _, n in self.manual["classes"]}
+        self.assertTrue(any(("× %s</h2>" % n) in dd for dd in details for n in cls_names))
+
+    def test_heroes_page_is_labelled_and_degrades_without_riot_data(self):
+        """The heroes page (owner request 2026-11-01) shows 均名/吃鸡率 with n, grade and the
+        survivorship note on every build; without --riot data the hover panel says so."""
+        hide = {i for i, _ in self.manual["hide"]}
+        with tempfile.TemporaryDirectory() as d:
+            build_site.render(self.snap, Path(d))
+            h = Path(d, "heroes.html").read_text(encoding="utf-8")
+        for needle in ("英雄数据", "吃鸡率", "均名 = 平均名次", "评级 C（描述性）", "这局本来就在赢",
+                       'data-f="s"', 'data-win="', "暂无自采样本", "星级数据", "盘"):
+            self.assertIn(needle, h)
+        self.assertEqual(h.count('class="hrow"'),
+                         len([c for c in self.snap["champions"] if c["character_record"]["character_id"] not in hide]))
+        self.assertIn("三*", h)  # a unit whose trios all miss the n >= 500 bar falls back to the most common trio
+
+    def test_heroes_page_renders_the_riot_panel(self):
+        riot = fixture.riot_doc(self.snap)
+        with tempfile.TemporaryDirectory() as d:
+            build_site.render(self.snap, Path(d), riot)
+            h = Path(d, "heroes.html").read_text(encoding="utf-8")
+        for needle in ("3★ 满装 · 所在阵容", "自采 Riot API", "仅本地预览", "(95% ", 'class="hpc"',
+                       "CHALLENGER/MASTER", "按均名排"):
+            self.assertIn(needle, h)
+        first_cells = riot["units"][next(iter(riot["units"]))]["cells"]
+        self.assertIn("均名 <b>%.2f</b>" % first_cells[0]["place_mean"], h)
+
+    def test_build_refuses_riot_data_that_does_not_match(self):
+        riot = fixture.riot_doc(self.snap)
+        riot["population"]["set"] += 1
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaises(SystemExit):
+                build_site.render(self.snap, Path(d), riot)
+        riot = fixture.riot_doc(self.snap)
+        riot["units"][next(iter(riot["units"]))]["cells"][0]["family"] = 999
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaises(SystemExit):
+                build_site.render(self.snap, Path(d), riot)
+
+    def test_guard_catches_a_unit_without_place_won(self):
+        self.check_catches(lambda s, m: s["unit_stats"][self.roster_id()].pop("won"), "place/top4/won")
+
+    def test_guard_catches_a_comp_without_group(self):
+        self.check_catches(lambda s, m: s["comps"][0].pop("group"), "group")
 
     def test_item_tips_find_recipes_by_key_then_by_name(self):
         craft = copy.deepcopy(self.snap["craft"])

@@ -43,16 +43,35 @@ footer{color:var(--mu);border-top:1px solid var(--bd);padding:24px 0 60px;font-s
 .syn .vh{height:110px;vertical-align:bottom}.syn .vh span{writing-mode:vertical-rl;padding:4px}.syn .rh{text-align:right;padding:0 6px;white-space:nowrap;position:sticky;left:0;background:var(--pn)}
 .syn td a{display:block;color:inherit;text-decoration:none;padding:3px}.syn td a:hover{background:var(--pn2)}.syn small{display:block;color:var(--mu);font-size:10px}
 .syn .dg{background:#222a35}.syn .na{color:#444}
+#synx b.mw{display:none}#synx.m-win b.mp{display:none}#synx.m-win b.mw{display:inline}
 table.vt{border-collapse:collapse;width:100%}.vt td,.vt th{border-bottom:1px solid var(--bd);padding:6px;text-align:center}.vt .us{text-align:left}
+.hrow{display:grid;grid-template-columns:30px 48px minmax(110px,1fr) auto minmax(230px,1.1fr);gap:10px;align-items:center;background:var(--pn);border:1px solid var(--bd);border-radius:var(--r);padding:8px 12px;margin-bottom:8px}
+.hrk{color:var(--mu);font-size:12px;text-align:right}
+.hface{position:relative;width:44px;height:44px;cursor:help}.hface>.av{width:44px;height:44px}
+.hp{display:none;position:absolute;left:52px;top:-6px;z-index:25;width:370px;max-width:82vw;background:var(--pn2);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.55);font-size:12px;font-weight:400;cursor:auto}
+.hface:hover .hp,.hface.open .hp{display:block}
+.hp-t{font-weight:700;font-size:14px}
+.hp-s{margin-top:8px;border-top:1px solid var(--bd);padding-top:6px;font-weight:700}.hp-s small{color:var(--mu);font-weight:400}
+.hp-s table{width:100%;border-collapse:collapse;font-weight:400;margin-top:4px}.hp-s td{padding:1px 6px 1px 0;color:var(--mu);white-space:nowrap}
+.hpc{font-weight:400;margin:6px 0;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px}
+.hpc .fcs{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px}
+.hpc .cst{color:var(--mu)}.hpc .cst b{color:var(--tx)}
+.hp .hint,.hp .emp3{font-weight:400;color:var(--mu);margin:6px 0 0;font-size:12px}
+.hst{display:flex;gap:14px;align-items:baseline;white-space:nowrap}.hst span{color:var(--mu);font-size:12px}.hst b{color:var(--tx);font-size:14px}.hst small{color:var(--mu)}
+.hbd .bd{margin-top:2px}.hbd .bd b{width:auto;min-width:24px}
+@media(max-width:900px){.hrow{grid-template-columns:24px 44px 1fr}.hst{grid-column:2/4;flex-wrap:wrap;gap:8px 14px}.hbd{grid-column:2/4}
+.hp{position:fixed;left:12px;right:12px;top:14%;width:auto;max-width:none}}
+
 @media(max-width:800px){nav .wrap{flex-wrap:wrap;height:auto;padding:8px 12px}nav input{width:100%;margin:0}.trow{grid-template-columns:1fr}.filters{padding:10px}}
 </style></head><body>
-<nav><div class="wrap"><a class="lg" href="index.html">zmftft</a><a href="index.html" class="cur">首页</a><a href="class.html">职业站位</a><a href="origin.html">种族站位</a><a href="synergy.html">种族搭配</a><a href="craft.html">装备合成</a></div></nav>
+<nav><div class="wrap"><a class="lg" href="index.html">zmftft</a><a href="index.html" class="cur">首页</a><a href="class.html">职业站位</a><a href="origin.html">种族站位</a><a href="heroes.html">英雄数据</a><a href="synergy.html">羁绊搭配</a><a href="craft.html">装备合成</a></div></nav>
 <div class="wrap"><header><h1>首页</h1><p><span class="pill">Set 18 · 版本 18.5c</span><span class="pill">排位 · 钻石以上 · 地区未注明</span><span class="pill">1,563,397 个棋盘</span><span class="pill">数据截至 2026-11-01 15:11 UTC</span></p>
 <p>数据来源 <a href="https://tactics.tools/zh/units" style="color:var(--ac)">tactics.tools</a> · 图标 Community Dragon</p>
 
 </header>
 <section id="ins"><h2>说明</h2><div class="box"><p>首页的「最强阵容」「冷门高胜率」「三星价值」「羁绊强度」、种族页的「站位结论」和英雄卡上的「阵眼」标签已下线。</p>
-<p class="hint">它们只看对局结束时的最终棋盘：活得越久越容易凑出三星、满装、高费卡和高档羁绊，所以这些数字主要说明“这局本来就在赢”，不说明“照这样玩能赢”。阵容强度目前还无法从最终棋盘可靠测出，测出之前这里不放排行。</p></div></section><section id="go"><h2>去哪看</h2><div class="grid three"><a class="box golink" href="class.html"><h3>职业站位</h3><p class="hint">各职业羁绊的前/中/后排英雄与常用出装</p></a><a class="box golink" href="origin.html"><h3>种族站位</h3><p class="hint">各种族羁绊的前/中/后排英雄与常用出装</p></a><a class="box golink" href="synergy.html"><h3>种族搭配</h3><p class="hint">种族 × 种族 搭配矩阵（均名、选率），点格子看所有英雄组合</p></a><a class="box golink" href="craft.html"><h3>装备合成</h3><p class="hint">当前赛季散件合成表、纹章与冠冕</p></a></div></section><script>var H={'#craft':'craft.html','#cls':'class.html','#ori':'origin.html','#ver':'origin.html'};if(H[location.hash])location.replace(H[location.hash]);</script>
+<p class="hint">它们只看对局结束时的最终棋盘：活得越久越容易凑出三星、满装、高费卡和高档羁绊，所以这些数字主要说明“这局本来就在赢”，不说明“照这样玩能赢”。阵容强度目前还无法从最终棋盘可靠测出，测出之前这里不放排行。</p>
+<p class="hint">想看原始数字：「英雄数据」页提供每个英雄的选率 / 吃鸡率 / 均名、出装与 3★ 满装所在阵容——它们是对结果的描述（逐项标注样本量与上面的偏差），不是强度结论。</p></div></section><section id="go"><h2>去哪看</h2><div class="grid three"><a class="box golink" href="class.html"><h3>职业站位</h3><p class="hint">各职业羁绊的前/中/后排英雄与常用出装</p></a><a class="box golink" href="origin.html"><h3>种族站位</h3><p class="hint">各种族羁绊的前/中/后排英雄与常用出装</p></a><a class="box golink" href="heroes.html"><h3>英雄数据</h3><p class="hint">全部英雄按选率 / 吃鸡率 / 均名排序，最高吃鸡率出装；悬停看星级数据与 3★ 满装所在阵容</p></a><a class="box golink" href="synergy.html"><h3>羁绊搭配</h3><p class="hint">种族 × 种族、种族 × 职业 搭配矩阵（均名 / 吃鸡率 可切换 + 选率），点格子看所有英雄组合</p></a><a class="box golink" href="craft.html"><h3>装备合成</h3><p class="hint">当前赛季散件合成表、纹章与冠冕</p></a></div></section><script>var H={'#craft':'craft.html','#cls':'class.html','#ori':'origin.html','#ver':'origin.html'};if(H[location.hash])location.replace(H[location.hash]);</script>
 <footer>非官方粉丝站，数据仅供参考。<br>云顶攻略台 zmftft was created under Riot Games&#x27; &quot;Legal Jibber Jabber&quot; policy using assets owned by Riot Games.  Riot Games does not endorse or sponsor this project.<br>云顶攻略台 zmftft isn&#x27;t endorsed by Riot Games and doesn&#x27;t reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.</footer></div>
 <script>
 (function(){

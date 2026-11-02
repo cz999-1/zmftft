@@ -83,6 +83,23 @@ def check(snap, manual=None):
     for u, s in snap["unit_stats"].items():
         if not isinstance(s.get("count"), int) or not 0 < s["count"] <= m["total"]:
             p.append("%s：棋盘数不合理 %s（全部棋盘 %s）" % (u, s, m["total"]))
+        elif not (isinstance(s.get("place"), (int, float)) and 1 <= s["place"] <= 8) or \
+                any(not (isinstance(s.get(k), (int, float)) and 0 <= s[k] <= 100) for k in ("top4", "won")):
+            p.append("%s：英雄页要用的 place/top4/won 缺失或出界：%s" % (u, s))
+    # 6. 英雄页的字段：阵容分组、星级数据、最高吃鸡组合（fetch_data 写入；缺 = 数据源或抓取变了）
+    if any(not isinstance(c.get("group"), int) for c in snap["comps"]):
+        p.append("有阵容缺 group（tactics.tools 的分组序号）")
+    for u, b in snap["unit_builds"].items():
+        for k in ("bestPair", "bestTrio"):
+            x = b.get(k)
+            if x is not None and not (isinstance(x.get("count"), int) and isinstance(x.get("won"), (int, float))):
+                p.append("%s：%s 缺 count/won" % (u, k))
+        for srow in b.get("starLevelData") or []:
+            n = srow.get("count")
+            if not isinstance(n, int) or not 0 <= n <= m["total"] or \
+                    (n > 0 and not (isinstance(srow.get("place"), (int, float)) and 0 < srow["place"] <= 8)):
+                p.append("%s：starLevelData 数值出界 %s" % (u, srow))
+                break
     return p
 
 
