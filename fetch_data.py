@@ -17,6 +17,39 @@ SNAPSHOTS = ROOT / "cache" / "snapshots"
 MAX_AGE = 6 * 3600
 TOP_BUILDS = 3  # 每个英雄保留的二/三件装组合数（按 tactics.tools 原顺序）
 BEST_MIN_N = 500  # 英雄页「最高吃鸡率」组合的最低场数：场数太少的组合吃鸡率是噪声，不参与挑选
+GROUP_TOP_ITEMS = 8  # 阵容页：每个阵容组里每个英雄保留的单件成装数（按场次）
+GROUP_TOP_PAIRS = 4  # 同上，两件组合数
+
+
+def _top_per_unit(rows, k):
+    """tactics.tools 的 unitItems / unitItemPairs：每个英雄只留场次最多的 k 条，顺序确定（英雄、场次降序、装备）。"""
+    kept = {}
+    for r in sorted(rows, key=lambda r: (r["unitId"], -r["count"], json.dumps(r.get("itemId") or r.get("items")))):
+        lst = kept.setdefault(r["unitId"], [])
+        if len(lst) < k:
+            lst.append(r)
+    return [r for u in sorted(kept) for r in kept[u]]
+
+
+def comp_groups(raw_groups):
+    """阵容页：每个 tactics.tools 阵容组一块，group = 序号（和 comps[].group 一致）。只按 checks.GROUP_FIELDS
+    白名单复制 full 里的字段（玩家名 topPlayers 等永远不进快照）；装备行按场次截断。"""
+    out = []
+    for g, gr in enumerate(raw_groups):
+        f = gr["full"]
+        d = {k: f.get(k) for k in checks.GROUP_FIELDS if k not in ("group", "unitItems", "unitItemPairs")}
+        d["group"] = g
+        d["unitItems"] = _top_per_unit(f.get("unitItems") or [], GROUP_TOP_ITEMS)
+        d["unitItemPairs"] = _top_per_unit(f.get("unitItemPairs") or [], GROUP_TOP_PAIRS)
+        out.append(d)
+    return out
+
+
+def official_trait_meta(cd_tft, set_no, folder):
+    """羁绊的激活人数（官方 minUnits，例：峡谷野怪 3/5/7/10）和图标（固定在版本目录）。"""
+    return {t["apiName"]: {"breaks": [x["minUnits"] for x in t.get("effects") or [] if x.get("minUnits") is not None],
+                           "icon": craft.icon(t.get("icon"), folder) if folder else ""}
+            for t in cd_tft["sets"][str(set_no)]["traits"]}
 
 
 def best_build(entries, min_n=BEST_MIN_N):
@@ -82,11 +115,14 @@ def make_snapshot(raw):
               for u, b in raw["builds"].items()}
     used = {i for b in builds.values() for k in ("itemPairs", "itemTrios") for x in b[k] + [b["bestPair"], b["bestTrio"]] if x
             for i in (x["items"] if isinstance(x["items"], list) else [x["items"]])}
-    used = {k for i in used for k in (i, i.replace("DA_", ""), i.replace("DA_", "").replace("Artifact_", ""))}
     comps = []  # group = tactics.tools 的阵容分组（同组为一套阵容的变体）；英雄页按组聚合
     for g, gr in enumerate(raw["groups"]):
         for v in gr.values():
             if isinstance(v, dict): comps += [dict(c, group=g) for c in v.get("comps") or []]
+    groups = comp_groups(raw["groups"])
+    # 阵容页显示的装备（含纹章、光明装备、神器）也要在装备表里，才有名字和图标
+    used |= {r["itemId"] for g in groups for r in g["unitItems"]} | {i for g in groups for r in g["unitItemPairs"] for i in r["items"]}
+    used = {k for i in used for k in (i, i.replace("DA_", ""), i.replace("DA_", "").replace("Artifact_", ""))}
     folder = cd_folder(raw["cd_meta"].get("version"))
     components, table = craft.build(raw["cd_tft"], set_no, folder)
     return {
@@ -99,13 +135,15 @@ def make_snapshot(raw):
                  "sources": {"tactics.tools": [TACTICS + "/zh/units", TACTICS + "/zh/units/<id>", TACTICS + "/zh/team-compositions"],
                              "community_dragon": [CD_ROOT + "/latest/content-metadata.json", CDRAGON + "/zh_cn/v1/tftchampions.json",
                                                   CDRAGON + "/zh_cn/v1/tftitems.json", craft.CD_JSON]}},
-        "official": {"units": official_units(raw["cd_tft"], set_no), "traits": official_traits(raw["cd_tft"], set_no)},
+        "official": {"units": official_units(raw["cd_tft"], set_no), "traits": official_traits(raw["cd_tft"], set_no),
+                     "trait_meta": official_trait_meta(raw["cd_tft"], set_no, folder)},
         # 职业/种族页的卡只显示 选率（owner, 2026-11-01）；place/top4/won 只给英雄页用（owner, 2026-11-01 heroes 页决定）
         "unit_stats": {u: {k: s.get(k) for k in ("count", "place", "top4", "won")} for u, s in sd["units"].items()},
         "champions": [{"character_record": {k: (c.get("character_record") or {}).get(k) for k in ("character_id", "display_name", "squareIconPath", "traits")}} for c in champs],
         "items": [{k: it.get(k) for k in ("nameId", "name", "squareIconPath")} for it in raw["items"] if set(item_keys(it.get("nameId") or "")) & used],
         "unit_builds": builds,
         "comps": comps,
+        "comp_groups": groups,  # 阵容页：每组一块（白名单字段，见 checks.GROUP_FIELDS）
         "craft": {"components": components, "recipes": [dict(v, pair=list(k)) for k, v in sorted(table.items())]},  # sorted: craft.build loops over a set
     }
 

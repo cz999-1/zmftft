@@ -11,9 +11,15 @@ from generate_tft_table import load_manual, SETS, CD_ROOT, UA
 BOUNDS = {"roster": (40, 90),          # 矩阵里的英雄数（65）
           "total": (10_000, None),     # tactics.tools 棋盘总数（1,563,397）
           "comps": (10, None),         # 主流阵容数（45）
+          "comp_groups": (2, 12),      # 阵容组数（5）
           "craft_components": (10, 10),  # 基础散件（10）
           "craft_recipes": (40, None)}   # 合成表格子（55）
 POSITIONS = {"front", "mid", "back"}
+# 阵容页的阵容组块（fetch_data.comp_groups）只许有这些字段，按 tactics.tools 原名复制。
+# 不复制：topPlayers（玩家名）、lpDelta*、日期/地区分布、itemDeltas/unitDeltas（未调整的“效果差”）、
+# starUnits（目标星级随费用变，五费记的是 2★）、winCons（计数超过组内棋盘数，口径不明）。
+GROUP_FIELDS = ("group", "count", "place", "top4", "win", "code", "placementDistribution", "levels",
+                "carryUnits", "units", "unitItemCounts", "traits", "unitItems", "unitItemPairs")
 
 
 def _between(name, v, problems):
@@ -45,6 +51,10 @@ def check(snap, manual=None):
         off = [u for u in craft_icons if u and not u.startswith("%s/%s/" % (CD_ROOT, folder))]
         if off:
             p.append("合成表图片没用版本目录 %s：%s 等 %d 个" % (folder, off[0], len(off)))
+        trait_icons = [t.get("icon") for t in (snap["official"].get("trait_meta") or {}).values()]
+        off = [u for u in trait_icons if u and not u.startswith("%s/%s/" % (CD_ROOT, folder))]
+        if off:
+            p.append("羁绊图标没用版本目录 %s：%s 等 %d 个" % (folder, off[0], len(off)))
     # 2. tactics.tools 的每个英雄 id 都要在官方数据里（新 id 先登记再出页面）
     unseen = sorted(set(snap["unit_stats"]) - set(off_units))
     if unseen:
@@ -100,6 +110,44 @@ def check(snap, manual=None):
                     (n > 0 and not (isinstance(srow.get("place"), (int, float)) and 0 < srow["place"] <= 8)):
                 p.append("%s：starLevelData 数值出界 %s" % (u, srow))
                 break
+    # 7. 阵容页的阵容组块：分组和 comps 一致、只有白名单字段（不含玩家名）、数值在合理范围
+    groups = snap.get("comp_groups")
+    if not isinstance(groups, list):
+        p.append("快照缺 comp_groups（阵容页的阵容组块）：用新版 fetch_data.py 重建快照")
+        return p
+    _between("comp_groups", len(groups), p)
+    want = sorted({c.get("group") for c in snap["comps"] if isinstance(c.get("group"), int)})
+    if sorted(g.get("group") for g in groups) != want:
+        p.append("comp_groups 的分组 %s 和 comps 的分组 %s 对不上" % (sorted(g.get("group") for g in groups), want))
+    for g in groups:
+        gid = g.get("group")
+        extra = sorted(set(g) - set(GROUP_FIELDS))
+        if extra:
+            p.append("阵容组 %s 含白名单外的字段 %s（玩家名等不进快照）" % (gid, ", ".join(extra)))
+        n = g.get("count")
+        if not isinstance(n, int) or not 0 < n <= m["total"]:
+            p.append("阵容组 %s：棋盘数不合理 %r" % (gid, n)); continue
+        if not (isinstance(g.get("place"), (int, float)) and 1 <= g["place"] <= 8) or \
+                any(not isinstance(g.get(k), int) or not 0 <= g[k] <= n for k in ("top4", "win")):
+            p.append("阵容组 %s：place/top4/win 缺失或出界" % gid)
+        dist = g.get("placementDistribution") or []
+        if len(dist) != 8 or abs(sum(dist) - n) > 2:
+            p.append("阵容组 %s：名次分布不是 8 档或合计对不上棋盘数（%s 对 %d）" % (gid, sum(dist), n))
+        lv = g.get("levels") or []
+        if not lv or any(len(r) != 3 or not 1 <= r[0] <= 10 or r[1] < 0 for r in lv) or abs(sum(r[1] for r in lv) - n) > 2:
+            p.append("阵容组 %s：终局等级分布缺失或合计对不上棋盘数" % gid)
+        bad = [r for r in g.get("units") or [] if len(r) != 4 or r[0] not in off_units or r[1] not in (1, 2, 3, 4)
+               or not isinstance(r[2], int) or not 0 <= r[2] <= n]
+        if not g.get("units") or bad:
+            p.append("阵容组 %s：英雄星级行缺失或出界（%s）" % (gid, bad[:1]))
+        bad = [r.get("unitId") for k in ("unitItems", "unitItemPairs", ) for r in g.get(k) or []
+               if r.get("unitId") not in off_units or not isinstance(r.get("count"), int)]
+        bad += [u for u, _ in g.get("carryUnits") or [] if u not in off_units]
+        if bad:
+            p.append("阵容组 %s：装备/主C 数据里有官方数据外的英雄或缺场次：%s" % (gid, bad[0]))
+        code = g.get("code") or ""
+        if code and not code.endswith("TFTSet%d" % set_no):
+            p.append("阵容组 %s：阵容码 %r 不是 Set %d 的" % (gid, code, set_no))
     return p
 
 

@@ -9,7 +9,7 @@ from pathlib import Path
 from generate_tft_table import (COST_COLORS, build_item_meta, item_cn, item_icon, item_keys, build_roster, cdragon_asset_url,
     load_manual, row_orders, NO_CLASS)
 
-import craft, synergy, fetch_data, checks
+import craft, synergy, comps, fetch_data, checks
 e = lambda s: H.escape(str(s))
 
 def face(u, size=""):
@@ -114,6 +114,69 @@ def check_riot(snap, riot):
         for c in d.get("cells") or []:
             if c["family"] not in fams:
                 raise SystemExit("--riot 单元格引用了不存在的阵容组 %s（%s）" % (c["family"], u))
+
+
+def check_riot_synergy(snap, rs):
+    """自采羁绊配对导出（tft-lab synergy_export）的护栏：对不上就不构建。"""
+    if not str(rs.get("schema", "")).startswith("tftlab-synergy/"):
+        raise SystemExit("--riot-synergy 文件不是 tftlab-synergy 导出（schema=%r）" % rs.get("schema"))
+    rset = (rs.get("population") or {}).get("set")
+    if rset != snap["meta"]["set"]:
+        raise SystemExit("--riot-synergy 数据是 Set %s，快照是 Set %s" % (rset, snap["meta"]["set"]))
+    off = snap["official"]["traits"]
+    names = set(rs.get("traits") or {}) | {p[k] for p in rs.get("pairs") or [] for k in ("a", "b")}
+    unknown = sorted(n for n in names if n not in off)
+    if unknown:
+        raise SystemExit("--riot-synergy 含官方羁绊表外的 apiName：%s" % ", ".join(unknown))
+
+
+def check_riot_comps(snap, rc):
+    """自采阵容组导出（tft-lab comps_export）的护栏：对不上就不构建。导出的阵容组必须就是这份快照的组：
+    组号一个不差，每组的展示阵容（场次最多的变体）、变体数和 tactics.tools 场次都对得上（tft-lab 按快照里
+    原样的 comps 列表计，重复行也算）；单元格里的英雄和羁绊都在官方表里。命令行构建另外核对导出记下的快照
+    SHA-256（main）。"""
+    if not str(rc.get("schema", "")).startswith("tftlab-comps/"):
+        raise SystemExit("--riot-comps 文件不是 tftlab-comps 导出（schema=%r）" % rc.get("schema"))
+    rset = (rc.get("population") or {}).get("set")
+    if rset != snap["meta"]["set"]:
+        raise SystemExit("--riot-comps 数据是 Set %s，快照是 Set %s" % (rset, snap["meta"]["set"]))
+    groups = {}
+    for c in snap["comps"]:
+        groups.setdefault(c["group"], []).append(c)
+    gids = {g["group"] for g in snap.get("comp_groups") or []}
+    fams = {f["id"]: f for f in rc.get("families") or []}
+    if set(fams) != gids:
+        raise SystemExit("--riot-comps 的阵容组 %s 和快照的 %s 对不上（导出时用的不是这份快照？）" % (sorted(fams), sorted(gids)))
+    for fid, f in sorted(fams.items()):
+        vs = groups.get(fid) or []
+        heavy = max(vs, key=lambda c: c.get("count") or 0)["units"] if vs else []
+        if list(f["units"]) != list(heavy) or f.get("variants") != len(vs) or \
+                f.get("tt_count") != sum(c.get("count") or 0 for c in vs):
+            raise SystemExit("--riot-comps 的阵容组 %s 和快照对不上（导出时用的不是这份快照？）" % fid)
+    bad = sorted({c["family"] for c in rc.get("cells") or []} - set(fams))
+    if bad:
+        raise SystemExit("--riot-comps 单元格引用了不存在的阵容组 %s" % bad)
+    known = set(snap["official"]["units"]) | {(c["character_record"] or {}).get("character_id") for c in snap["champions"]}
+    unk = sorted({u["unit"] for c in rc.get("cells") or [] for u in c.get("units") or []} - known)
+    if unk:
+        raise SystemExit("--riot-comps 含官方英雄表外的 id：%s" % ", ".join(unk))
+    unk = sorted({t["trait"] for c in rc.get("cells") or [] for t in c.get("traits") or []} - set(snap["official"]["traits"]))
+    if unk:
+        raise SystemExit("--riot-comps 含官方羁绊表外的 apiName：%s" % ", ".join(unk))
+
+
+ROOT = Path(__file__).resolve().parent
+
+
+def check_out(out, flags):
+    """自采（开发 key）数据只能构建到 cache/ 下：写进仓库里的页面就会被提交、推上线。flags = 本次用到的
+    自采参数名；没有自采数据时任何输出目录都行。"""
+    if not flags:
+        return
+    o, cache = Path(out).resolve(), ROOT / "cache"
+    if (o == ROOT or ROOT in o.parents) and not (o == cache or cache in o.parents):
+        raise SystemExit("%s 是自采（开发 key）数据，只能构建到 cache/ 下（例如 --out cache/preview），"
+                         "不能写进仓库里的页面：%s" % ("、".join(flags), o))
 
 
 def riot_label(riot):
@@ -223,7 +286,10 @@ def main():
     ap.add_argument("--no-cache", action="store_true", help="忽略 cache/raw/ 重新抓取")
     ap.add_argument("--data", help="只用这个快照渲染、不联网，例如 cache/snapshots/set18/18.5c.json")
     ap.add_argument("--riot", help="tft-lab 的 heroes 导出 JSON（自采对局）：英雄页悬停面板的数据")
+    ap.add_argument("--riot-synergy", help="tft-lab 的 synergy 导出 JSON（自采羁绊配对）：羁绊搭配页的自采矩阵")
+    ap.add_argument("--riot-comps", help="tft-lab 的 comps 导出 JSON（自采阵容组统计）：阵容页的自采对照与详情页的自采数据")
     a = ap.parse_args()
+    check_out(a.out, [n for n, v in (("--riot", a.riot), ("--riot-synergy", a.riot_synergy), ("--riot-comps", a.riot_comps)) if v])
     if a.data:
         path = Path(a.data)
         checks.require(fetch_data.load(path))
@@ -233,13 +299,26 @@ def main():
     riot = json.loads(Path(a.riot).read_text(encoding="utf-8")) if a.riot else None
     if riot is not None and riot.get("publishable") is False:
         print("注意：--riot 数据标记为不可公开（开发 key）——本次构建仅限本地预览，不要推送上线")
-    render(fetch_data.load(path), Path(a.out), riot)
+    riot_syn = json.loads(Path(a.riot_synergy).read_text(encoding="utf-8")) if a.riot_synergy else None
+    if riot_syn is not None and riot_syn.get("publishable") is False:
+        print("注意：--riot-synergy 数据标记为不可公开（开发 key）——本次构建仅限本地预览，不要推送上线")
+    riot_comps = json.loads(Path(a.riot_comps).read_text(encoding="utf-8")) if a.riot_comps else None
+    if riot_comps is not None and riot_comps.get("publishable") is False:
+        print("注意：--riot-comps 数据标记为不可公开（开发 key）——本次构建仅限本地预览，不要推送上线")
+    if riot_comps is not None and (riot_comps.get("comp_source") or {}).get("sha256") != fetch_data.sha256(path):
+        raise SystemExit("--riot-comps 导出时用的快照（SHA-256 %s）不是这份（%s）：用这份快照重新导出" % (
+            (riot_comps.get("comp_source") or {}).get("sha256"), fetch_data.sha256(path)))
+    render(fetch_data.load(path), Path(a.out), riot, riot_syn, riot_comps)
     print("snapshot sha256", fetch_data.sha256(path), "（README「页面数据快照」里记的应是这个值）")
 
-def render(snap, out, riot=None):
-    """页面只读快照（和可选的 --riot 自采导出），不联网。"""
+def render(snap, out, riot=None, riot_syn=None, riot_comps=None):
+    """页面只读快照（和可选的 --riot / --riot-synergy / --riot-comps 自采导出），不联网。"""
     if riot is not None:
         check_riot(snap, riot)
+    if riot_syn is not None:
+        check_riot_synergy(snap, riot_syn)
+    if riot_comps is not None:
+        check_riot_comps(snap, riot_comps)
     m = snap["meta"]; us = snap["unit_stats"]; total = m["total"]
     manual = load_manual(m["set"])
     costs = {k: v["cost"] for k, v in snap["official"]["units"].items()}
@@ -254,17 +333,25 @@ def render(snap, out, riot=None):
         allmap[cr.get("character_id")] = {"name": cr.get("display_name") or cr.get("character_id"),
             "icon": cdragon_asset_url(cr.get("squareIconPath"), folder), "cost": costs.get(cr.get("character_id"))}
     roster = build_roster(champs, snap["unit_builds"], costs, manual, folder)
-    comps = snap["comps"]
+    # tactics.tools 的变体列表里有逐字重复的行（同一批棋盘列了两次）：页面只算一次，保持原顺序
+    comps_ = list({json.dumps(c, sort_keys=True, ensure_ascii=False): c for c in snap["comps"]}.values())
     def U(i): return allmap.get(i) or {"name": i.replace("DA_", ""), "icon": "", "cost": None}
     cls_html = matrix(meta, roster, "classes", class_order, us, total, "cls", "职业羁绊 × 站位")
     ori_html = matrix(meta, roster, "origins", origin_order, us, total, "ori", "种族羁绊 × 站位")
     links = '<section id="go"><h2>去哪看</h2><div class="grid three">' + "".join(
         '<a class="box golink" href="%s"><h3>%s</h3><p class="hint">%s</p></a>' % x for x in PAGES[1:]) + '</div></section>'
-    bodies = {"index.html": REMOVED + links + "<script>var H={'#craft':'craft.html','#cls':'class.html','#ori':'origin.html','#ver':'origin.html'};if(H[location.hash])location.replace(H[location.hash]);</script>", "class.html": cls_html, "origin.html": ori_html, "synergy.html": "",
+    comps_page, comps_index, comp_pages = comps.build(
+        snap["comp_groups"], comps_, manual, total, U, face, meta, snap["official"]["traits"],
+        snap["official"].get("trait_meta") or {}, crawl=riot_comps,
+        crawl_label=riot_label(riot_comps) if riot_comps else "")
+    bodies = {"index.html": comps_index + REMOVED + links + "<script>var H={'#craft':'craft.html','#cls':'class.html','#ori':'origin.html','#ver':'origin.html'};if(H[location.hash])location.replace(H[location.hash]);</script>",
+              "comps.html": comps_page, "class.html": cls_html, "origin.html": ori_html, "synergy.html": "",
               "heroes.html": heroes_page(meta, roster, us, total, snap["unit_builds"], riot, U),
               "craft.html": craft.section([tuple(c) for c in snap["craft"]["components"]], {tuple(r["pair"]): r for r in snap["craft"]["recipes"]}, m["set"])[0]}
-    syn_mat, syn_pages = synergy.build(comps, roster, origin_order,
-                                       [c for c in class_order if c != NO_CLASS], total, face, U)
+    syn_mat, syn_pages = synergy.build(comps_, roster, origin_order,
+                                       [c for c in class_order if c != NO_CLASS], total, face, U,
+                                       crawl=riot_syn, crawl_zh=snap["official"]["traits"],
+                                       crawl_label=riot_label(riot_syn) if riot_syn else "")
     bodies["synergy.html"] = syn_mat
     tpl = TPL.replace("{{RIOT_NOTICE}}", e(RIOT_NOTICE)).replace("{{RIOT_BOILERPLATE}}", e(RIOT_BOILERPLATE))
     for k, v in (("{{SET}}", m["set"]), ("{{PATCH}}", m["patch_label"] or "tactics.tools 编号 %s" % m["patch"]),
@@ -279,20 +366,24 @@ def render(snap, out, riot=None):
         tips = {"c": {c: [n, i] for c, n, i in snap["craft"]["components"]}, "i": item_tips(meta, snap["craft"], ids)}
         tips_json = json.dumps(tips, ensure_ascii=False, sort_keys=True, separators=(",", ":")).replace("</", "<\\/")
         return tpl.replace("{{TIPCSS}}", TIP_CSS).replace("{{ITEMTIPS}}", '<script type="application/json" id="itd">%s</script>%s' % (tips_json, TIP_JS))
-    out.mkdir(parents=True, exist_ok=True); (out / "synergy").mkdir(exist_ok=True)
-    for old in (out / "synergy").glob("*.html"): old.unlink()
-    for fn, (t, body) in syn_pages.items():
-        nav = "".join('<a href="../%s"%s>%s</a>' % (f, ' class="cur"' if f == "synergy.html" else "", tt) for f, tt, _ in PAGES)
-        doc = finish(body).replace("{{CRAFTCSS}}", craft.CSS + synergy.CSS + HERO_CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", t).replace("{{FILTERS}}", "").replace("{{SEARCH}}", "").replace("{{BODY}}", body).replace('href="index.html"', 'href="../index.html"')
+    css = craft.CSS + synergy.CSS + HERO_CSS + comps.CSS
+    out.mkdir(parents=True, exist_ok=True)
+    for sub in ("synergy", "comps"):  # 详情页目录每次清空重写：删掉的格子/阵容组不会留下旧页
+        (out / sub).mkdir(exist_ok=True)
+        for old in (out / sub).glob("*.html"): old.unlink()
+    for fn, (t, body) in {**syn_pages, **comp_pages}.items():
+        parent = fn.split("/")[0] + ".html"  # synergy/… 属于「羁绊搭配」，comps/… 属于「阵容」
+        nav = "".join('<a href="../%s"%s>%s</a>' % (f, ' class="cur"' if f == parent else "", tt) for f, tt, _ in PAGES)
+        doc = finish(body).replace("{{CRAFTCSS}}", css).replace("{{NAV}}", nav).replace("{{TITLE}}", e(t)).replace("{{FILTERS}}", "").replace("{{SEARCH}}", "").replace("{{BODY}}", body).replace('href="index.html"', 'href="../index.html"')
         (out / fn).write_text(doc, encoding="utf-8")
     for fn, title, _ in PAGES:
         nav = "".join('<a href="%s"%s>%s</a>' % (f, ' class="cur"' if f == fn else "", t) for f, t, _ in PAGES)
         filt = FILTERS if fn in ("class.html", "origin.html") else ""
         search = SEARCH if filt or fn == "heroes.html" else ""
-        doc = finish(bodies[fn]).replace("{{CRAFTCSS}}", craft.CSS + synergy.CSS + HERO_CSS).replace("{{NAV}}", nav).replace("{{TITLE}}", title).replace("{{FILTERS}}", filt).replace("{{SEARCH}}", search).replace("{{BODY}}", bodies[fn])
+        doc = finish(bodies[fn]).replace("{{CRAFTCSS}}", css).replace("{{NAV}}", nav).replace("{{TITLE}}", e(title)).replace("{{FILTERS}}", filt).replace("{{SEARCH}}", search).replace("{{BODY}}", bodies[fn])
         (out / fn).write_text(doc, encoding="utf-8")
         print("done →", out / fn, len(doc), "bytes")
-    print(len(roster), "champions;", len(comps), "comps")
+    print(len(roster), "champions;", len(comps_), "comps;", len(comp_pages), "comp groups")
 
 # Riot's notice for fan projects, copied from https://www.riotgames.com/en/legal ("Legal Jibber Jabber",
 # section 6, last updated August 2018; read 2026-11-01). Only "[The title of your Project]" is filled in.
@@ -306,10 +397,11 @@ RIOT_BOILERPLATE = ("云顶攻略台 zmftft isn't endorsed by Riot Games and doe
 
 # 下线说明（2026-11-01）：最强阵容、冷门高胜率、三星价值、羁绊强度、站位结论、阵眼标签
 REMOVED = '''<section id="ins"><h2>说明</h2><div class="box"><p>首页的「最强阵容」「冷门高胜率」「三星价值」「羁绊强度」、种族页的「站位结论」和英雄卡上的「阵眼」标签已下线。</p>
-<p class="hint">它们只看对局结束时的最终棋盘：活得越久越容易凑出三星、满装、高费卡和高档羁绊，所以这些数字主要说明“这局本来就在赢”，不说明“照这样玩能赢”。阵容强度目前还无法从最终棋盘可靠测出，测出之前这里不放排行。</p>
+<p class="hint">它们只看对局结束时的最终棋盘：活得越久越容易凑出三星、满装、高费卡和高档羁绊，所以这些数字主要说明“这局本来就在赢”，不说明“照这样玩能赢”。阵容强度目前还无法从最终棋盘可靠测出，测出之前这里不放排行：上面的「阵容」按场次（人气）排列，是描述，不是强度排行，每组的强度评级标为「待验证」。</p>
 <p class="hint">想看原始数字：「英雄数据」页提供每个英雄的选率 / 吃鸡率 / 均名、出装与 3★ 满装所在阵容——它们是对结果的描述（逐项标注样本量与上面的偏差），不是强度结论。</p></div></section>'''
 
-PAGES = [("index.html", "首页", "说明与各页入口"),
+PAGES = [("index.html", "首页", "阵容、说明与各页入口"),
+         ("comps.html", "阵容", "主流阵容组按场次（人气）排列：羁绊、八人阵容、3★ / 成装标记与每组详情——不是强度排行"),
          ("class.html", "职业站位", "各职业羁绊的前/中/后排英雄与常用出装"),
          ("origin.html", "种族站位", "各种族羁绊的前/中/后排英雄与常用出装"),
          ("heroes.html", "英雄数据", "全部英雄按选率 / 吃鸡率 / 均名排序，最高吃鸡率出装；悬停看星级数据与 3★ 满装所在阵容"),
@@ -487,7 +579,8 @@ footer{color:var(--mu);border-top:1px solid var(--bd);padding:24px 0 60px;font-s
     });
   }
   q.addEventListener('input', function(){ state.q=q.value.trim(); apply(); });
-  document.getElementById('filters').addEventListener('click', function(ev){
+  var fl=document.getElementById('filters');  // 英雄页有搜索框、没有这组筛选（它有自己的 #htools）
+  if(fl) fl.addEventListener('click', function(ev){
     var b=ev.target.closest('.fb'); if(!b) return;
     var f=b.dataset.f, v=b.dataset.v;
     state[f]=v;

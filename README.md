@@ -19,6 +19,7 @@ zmftft 的目标很简单：**用最新数据自动生成一张中文、当前�
 
 | 问题 | zmftft 的做法 |
 | --- | --- |
+| 不知道玩什么阵容 | 首页和「阵容」页：tactics.tools 主流阵容组按场次（人气）列出，op.gg 式卡片（羁绊、八人阵容、3★ / 成装标记）+ 每组详情页；不是强度排行，强度评级标「待验证」 |
 | 不清楚羁绊里谁站前/中/后排 | 职业、起源两张矩阵：每个羁绊 × 前排 / 中排 / 后排，列出对应英雄 |
 | 英雄费用一眼看不出 | 卡片按费用着色，并显示选取率和满装率（不再显示平均名次和前四率：它们来自最终棋盘，高费卡、后期才成型的卡天然名次更好） |
 | 不知道带什么装 | 每个英雄列出出场最多的二件套 / 三件套，附吃鸡率（全体基线 12.5%）与场次 |
@@ -30,7 +31,7 @@ zmftft 的目标很简单：**用最新数据自动生成一张中文、当前�
 
 ```
 tactics.tools（英雄出装 / 羁绊表现统计）  ┐
-Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python 脚本 → 6 个 HTML 页面 → GitHub Pages
+Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python 脚本 → 7 个 HTML 页面 + 详情页 → GitHub Pages
 ```
 
 - **数据源**
@@ -40,11 +41,12 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
 - **生成脚本**（只用 Python 标准库，无第三方依赖）
   - `fetch_data.py`：每个数据源只请求一次，原始响应缓存在 `cache/raw/`（已 gitignore，6 小时内复用），只把页面用到的字段存成快照 `cache/snapshots/set<N>/<patch>.json`（带 set、版本、分段、tactics.tools 数据更新时间、抓取时间、来源）。快照**不入库**：仓库里只有由它生成的页面和它的 SHA-256（见「页面数据快照」）
   - `generate_tft_table.py`：抓取工具、组装英雄表（官方中文名与费用 + `sets/` 里的人工标注）、出装
-  - `checks.py`：构建护栏，每次存快照和生成页面前都跑；不通过就退出、什么都不写（问题列表会打印出来，快照留在 `cache/failed_snapshot.json` 供排查）。检查：Community Dragon、tactics.tools 页面标题和 `sets/` 文件的赛季号一致；tactics.tools 的每个英雄 id 都在官方数据里；矩阵里每个英雄有中文名、1–5 费、图标、站位，人工标注里的名字和官方一致；用到的每个羁绊都标了职业或种族；棋盘数、阵容数、合成表大小在合理范围
+  - `checks.py`：构建护栏，每次存快照和生成页面前都跑；不通过就退出、什么都不写（问题列表会打印出来，快照留在 `cache/failed_snapshot.json` 供排查）。检查：Community Dragon、tactics.tools 页面标题和 `sets/` 文件的赛季号一致；tactics.tools 的每个英雄 id 都在官方数据里；矩阵里每个英雄有中文名、1–5 费、图标、站位，人工标注里的名字和官方一致；用到的每个羁绊都标了职业或种族；棋盘数、阵容数、合成表大小在合理范围；阵容组块（`comp_groups`）的分组和 `comps` 一致、只有白名单字段（`checks.GROUP_FIELDS`，玩家名 `topPlayers` 等永远不进快照）、名次分布与终局等级分布的合计对得上棋盘数；羁绊图标固定在版本目录
   - `tests/`：`python3 -m unittest discover -s tests`（标准库，不联网；用 `tests/fixture.py` 生成的假快照：真实 id 和名字、编造的数字。本地 `cache/snapshots/` 里有真实快照时也检查它）
   - `craft.py`：从 Community Dragon 读取当前赛季配方，生成装备合成矩阵、纹章、冠冕
-  - `build_site.py`：把以上内容组装成多页站点（共享顶部导航，内联 CSS/JS）：`index.html` 首页（下线说明 + 各页入口）、`class.html` 职业站位、`origin.html` 种族站位（只有 1 名英雄的种族合并为「单一英雄种族」一行）、`heroes.html` 英雄数据（见「英雄数据」）、`craft.html` 装备合成；页面间用相对链接互跳，旧的 `#craft` 等锚点会自动跳到新页面；有装备图标的页面上悬停（手机上点按）图标显示合成配方：两件散件和效果，取自快照里的合成表（tactics.tools 用新 id、合成表用 Riot 的旧 api 名的装备按中文名对上；`#itd` 按页生成，恰好覆盖该页显示的装备）
-- **部署**：6 个 `*.html` 推到 `main`，由 GitHub Pages 直接托管
+  - `comps.py`：阵容卡片、阵容页和每组详情页 `comps/<hash>.html`（见「阵容」）
+  - `build_site.py`：把以上内容组装成多页站点（共享顶部导航，内联 CSS/JS）：`index.html` 首页（阵容卡片 + 下线说明 + 各页入口）、`comps.html` 阵容、`class.html` 职业站位、`origin.html` 种族站位（只有 1 名英雄的种族合并为「单一英雄种族」一行）、`heroes.html` 英雄数据（见「英雄数据」）、`craft.html` 装备合成；页面间用相对链接互跳，旧的 `#craft` 等锚点会自动跳到新页面；有装备图标的页面上悬停（手机上点按）图标显示合成配方：两件散件和效果，取自快照里的合成表（tactics.tools 用新 id、合成表用 Riot 的旧 api 名的装备按中文名对上；`#itd` 按页生成，恰好覆盖该页显示的装备）
+- **部署**：根目录的 `*.html` 和 `comps/`、`synergy/` 两个详情页目录推到 `main`，由 GitHub Pages 直接托管
   - 根目录的 `riot.txt` 是 Riot 开发者平台验证本站网址用的：申请 production key 时 Riot 给的验证码，文件里只有这串码。2026-11-01 重填申请后换过一次码。构建不碰它；只在 Riot 换码时改它，同时改 `tests/test_site.py` 里的 `RIOT_TXT`。测试会检查它还在、内容没变（只忽略结尾一个换行）
 
 ### 数据从哪来（分工）
@@ -82,7 +84,7 @@ python3 build_site.py            # 抓取 → 存快照 cache/snapshots/set<N>/<
 python3 build_site.py --no-cache # 强制重新抓取（不用 cache/raw/）
 python3 build_site.py --data cache/snapshots/set18/18.5c.json   # 只用已有快照重新生成页面，不联网
 # 把下面「页面数据快照」那一行换成新快照的文件名和 SHA-256（build_site.py 最后会打印）
-git add *.html synergy README.md && git commit -m "refresh data" && git push
+git add *.html comps synergy README.md && git commit -m "refresh data" && git push
 ```
 
 新赛季上线后，Community Dragon 与 tactics.tools 更新数据，重跑即可；赛季编号相关的过滤在脚本中自动检测/可调整。
@@ -93,7 +95,7 @@ git add *.html synergy README.md && git commit -m "refresh data" && git push
 
 | 快照 | SHA-256 | 内容 |
 |---|---|---|
-| `cache/snapshots/set18/18.5c.json` | `00784fe0cf77ace408b33ad97fe3b9027383d6638e2b7f3694274ceefdf574c1` | tactics.tools 18.5c · 排位 · 钻石以上，1,563,397 个棋盘，数据截至 2026-11-01 15:11 UTC；抓取于 2026-11-01 17:00 UTC（英雄页上线时用同一批 `cache/raw/` 以 `--offline` 重建，补了英雄 均名/前四/吃鸡、星级数据、最高吃鸡组合与阵容分组字段）；Community Dragon 数据取自 latest（16.21.8342754），图片固定在 `16.21` 目录 |
+| `cache/snapshots/set18/18.5c.json` | `424cd5849a93b6351d69e26a685024f7d517e7da80a768df50e8828aab90ed99` | tactics.tools 18.5c · 排位 · 钻石以上，1,563,397 个棋盘，数据截至 2026-11-01 15:11 UTC；抓取于 2026-11-01 17:00 UTC（英雄页上线时用同一批 `cache/raw/` 以 `--offline` 重建，补了英雄 均名/前四/吃鸡、星级数据、最高吃鸡组合与阵容分组字段；阵容页上线时（2026-11-03）再以 `--offline` 重建，补了阵容组块 `comp_groups`（主C、各星级行、成装分布、单件/两件装备、羁绊档位、名次与终局等级分布、阵容码；不含玩家名）和官方羁绊激活人数与图标 `official.trait_meta`，其余字段逐字节不变）；Community Dragon 数据取自 latest（16.21.8342754），图片固定在 `16.21` 目录 |
 
 核对：`python3 -c "import fetch_data; print(fetch_data.sha256('cache/snapshots/set18/18.5c.json'))"`。快照按 LF 换行写，同一份数据在任何系统上哈希相同；用它跑 `python3 build_site.py --data …` 应得到和仓库里一模一样的页面。
 
@@ -102,10 +104,11 @@ git add *.html synergy README.md && git commit -m "refresh data" && git push
 ## 页面结构
 
 1. **顶栏**：版本标识、搜索框、过滤器、区块导航
-2. **首页说明**：已下线的板块和原因（见下文）
-3. **职业矩阵 / 起源矩阵**：羁绊 × 前中后排的英雄卡片（费用、数据、二/三件套）
-4. **英雄数据**（`heroes.html`）：全英雄 选率 / 吃鸡率 / 均名 排序 + 最高吃鸡出装 + 悬停面板（见下文「英雄数据」）
-5. **装备合成**（`#craft`）：Set 18 散件 10×10 矩阵 + 纹章 + 冠冕
+2. **首页**：阵容卡片（同「阵容」页）+ 已下线的板块和原因（见下文）+ 各页入口
+3. **阵容**（`comps.html` + `comps/<hash>.html`）：主流阵容组按场次排列 + 每组详情（见下文「阵容」）
+4. **职业矩阵 / 起源矩阵**：羁绊 × 前中后排的英雄卡片（费用、数据、二/三件套）
+5. **英雄数据**（`heroes.html`）：全英雄 选率 / 吃鸡率 / 均名 排序 + 最高吃鸡出装 + 悬停面板（见下文「英雄数据」）
+6. **装备合成**（`#craft`）：Set 18 散件 10×10 矩阵 + 纹章 + 冠冕
 
 ## 非目标
 
@@ -141,9 +144,35 @@ git add *.html synergy README.md && git commit -m "refresh data" && git push
 - 它们都只看对局结束时的**最终棋盘**。三星、满 3 件装、高费卡、高档羁绊都要活得够久才凑得出，所以出现它们的棋盘名次本来就好，不论它们本身有没有用（幸存者偏差）；强阵容、运气和技术又同时带来这些状态和好名次（混杂）。
 - 例（2026-10-30 的页面）：「三星价值」前 8 名全是 4 费、3★ 均名 1.1–1.4；「羁绊强度」取各档均名的最小值，最高档通常只有赢家能到；13 个「阵眼—装备」里有 6 个是本站标为前排的单位。
 - 在已知真值的模拟检验里（tft-lab 项目），「三星价值」这种算法把三星的好处高估了 1.7–2.0 个名次，并且在追三星其实不划算的情形里总是建议追。
-- 阵容强度目前还无法从最终棋盘可靠测出，测出之前首页不放阵容排行。
-- 「阵眼—装备」换成英雄卡上的**满装率**：该英雄在场的棋盘里拿着 3 件成装的比例（tactics.tools 的 `itemCountData`）。它说明玩家把装备给谁，不说明给它装备更能赢。按阵容拆开的装备分配（每个阵容里各英雄拿了多少成装）需要逐局数据，tft-lab 已能算，但开发 / 个人 key 的数据不能上公开站点，所以暂不显示（heroes.html 的「3★ 满装 · 所在阵容」面板就是这类数据：代码已接好，只在本地 `--riot` 预览构建里渲染，线上构建显示「暂无自采样本」）。
+- 阵容强度目前还无法从最终棋盘可靠测出，测出之前首页不放阵容排行。2026-11-03 起首页和「阵容」页按**场次（人气）**列出主流阵容组：这是描述，不是排行，每组强度评级标「待验证」（见下文「阵容」）。
+- 「阵眼—装备」换成英雄卡上的**满装率**：该英雄在场的棋盘里拿着 3 件成装的比例（tactics.tools 的 `itemCountData`）。它说明玩家把装备给谁，不说明给它装备更能赢。按阵容拆开的装备分配（每个阵容里各英雄拿了多少成装）从 2026-11-03 起在「阵容」页显示，数据取自 tactics.tools 的阵容组（`carryUnits` / `unitItemCounts`）；tft-lab 自采的同类数据（开发 / 个人 key，不能上公开站点）只在本地 `--riot-comps` 预览构建里渲染（heroes.html 的「3★ 满装 · 所在阵容」面板同理：只在 `--riot` 预览里有，线上构建显示「暂无自采样本」）。
 - 「英雄数据」页（2026-11-01）重新给出全英雄的 选率 / 吃鸡率 / 均名 与最高吃鸡出装：同样是最终棋盘统计，页顶与每行都带偏差说明、样本量与 C 级标注——它描述玩家行为与结果，不是强度结论。
+
+## 阵容（首页 + comps.html，2026-11-03）
+
+照 op.gg 阵容页的呈现方式（https://op.gg/zh-cn/tft/meta-trends/comps），数据是 tactics.tools 阵容页的 5 个阵容组（每组一套阵容 + 最多 9 个展示变体，快照 `comp_groups` 与 `comps`；tactics.tools 的变体列表里有逐字重复的行，构建时去重，所以页面上是 6–9 个）。首页和 `comps.html` 是同一组卡片，`comps.html` 多一段口径说明；每组有详情页 `comps/<hash>.html`（`comps.py`，每次构建清空重写）。
+
+- **排序**：按场次（人气），**不是强度排行**；每张卡写「强度评级：待验证」。阵容强度要等 tft-lab 的阵容表合并和新的预注册检验（tft-lab `reports/comp_merge_instructions.md`）
+- **卡片**：场次、选率（场次 / 全部棋盘）、均名、前四率、吃鸡率，每项旁边写主流阵容组的基线（均名 4.29、前四率 54.1%、吃鸡率 13.3%；均匀基线 4.50 / 50% / 12.5%）；本组 ≥ 50% 棋盘激活的羁绊（官方激活人数，如 峡谷野怪 7）；八人阵容（出场最多的变体，按费用排）
+- **★★★**：该英雄 3★（含 4★）占本组棋盘 ≥ 50% 金色、20%–50% 灰色，取自 tactics.tools 的星级行。tactics.tools 自己的 `starUnits` 不用：它的目标星级随费用变（五费记的是 2★）。**1st / 2nd / 3rd**：本组每盘平均持有成装最多的三个英雄，头像下是它最常带的 3 件。两者都描述玩家怎么玩，页面写明不是“该追三星 / 该给谁装备”的建议
+- **详情页**：羁绊各档（高亮最常见档位）、英雄与装备（出场、星级分布、每盘成装、满装率、常带成装与两件组合的场次和占比——不给均名，场次 < 500 淡化）、名次分布（虚线 = 12.5%）、终局等级**只给分布**（各等级均名几乎由活了多久决定，不放）、去重后的变体（附“差别主要反映棋盘成型到哪一步”的说明，场次 < 500 淡化）、站位示意（**人工标注**，非实测站位）、相似阵容、tactics.tools 阵容码（可复制）
+- **为什么没有**：op.gg 的「早期至中期阵容（逐等级）」「重置次数」「推荐强化符文」和实测站位需要对局过程中的逐阶段数据；本站的数据源只有最终棋盘（Set 18 的对局数据里也没有强化符文字段），页面用一个灰框说明
+
+### 自采阵容数据（仅本地预览，2026-11-03）
+
+传入 `--riot-comps`（tft-lab 的 comps 导出）时，`comps.html` 加一张「自采对局对照」表（行顺序同卡片），每个详情页加「自采数据」一节：棋盘、自采选率、均名、前四率、吃鸡率（都带 95% 区间，按“场”整群自助法）、名次与终局等级分布、羁绊档位、每个英雄的出场 / 3★ / 成装份额 / 满装率和常见成装组合。阈值与口径预注册于 tft-lab `reports/comps_prereg.md`（SHA-256 `ca351f23…`），方法见 `reports/comps_na_master_18_5.md`。
+
+```bash
+# tft-lab 仓库里（读冻结的第一轮自采库，不联网；快照提供阵容分组）：
+python -m tftlab.report.comps_export --db data/frozen/tftlab_first_crawl_2026-10-31.sqlite --set 18 --host americas \
+    --start 2026-10-22 --end 2026-11-04 --patch 18.5 --snapshot "../zmftft/cache/snapshots/set18/18.5c.json" \
+    --out "../zmftft/cache/riot/comps_set18_18.5_americas.json"
+# 本仓库里，仅本地预览（开发 / 个人 key 的数据不能上公开站点）：
+python3 build_site.py --data cache/snapshots/set18/18.5c.json --riot cache/riot/heroes_set18_18.5_americas.json \
+    --riot-synergy cache/riot/synergy_set18_18.5_americas.json --riot-comps cache/riot/comps_set18_18.5_americas.json --out cache/preview
+```
+
+不带 `--riot-comps` 构建（= 推上线的版本）时这些都不出现，首页也从不放自采数据。构建护栏核对 schema、赛季号、导出记下的快照 SHA-256 必须等于这份快照（`main`）、阵容组的组号 / 展示阵容 / 变体数 / 场次都和快照一致、英雄和羁绊 id 都在官方表里（`check_riot_comps`）。带任何自采参数（`--riot` / `--riot-synergy` / `--riot-comps`）时，`--out` 只能指向 `cache/` 下，否则构建直接停下（`check_out`），自采数据写不进要提交的页面。
 
 ## 英雄数据（heroes.html，2026-11-01）
 
@@ -153,7 +182,7 @@ git add *.html synergy README.md && git commit -m "refresh data" && git push
 
 ```bash
 # tft-lab 仓库里（读本地 SQLite，不联网；快照提供阵容分组）：
-python -m tftlab.report.heroes_export --set 18 --host americas --start 2026-10-22 --end 2026-11-04 \
+python -m tftlab.report.heroes_export --db data/frozen/tftlab_first_crawl_2026-10-31.sqlite --set 18 --host americas --start 2026-10-22 --end 2026-11-04 \
     --patch 18.5 --snapshot "../zmftft/cache/snapshots/set18/18.5c.json"
 # 本仓库里，仅本地预览（开发 / 个人 key 的数据不能上公开站点，见「数据从哪来」）：
 python3 build_site.py --data cache/snapshots/set18/18.5c.json --riot cache/riot/heroes_set18_18.5_americas.json --out cache/preview
@@ -171,5 +200,28 @@ python3 build_site.py --data cache/snapshots/set18/18.5c.json --riot cache/riot/
 - 均名和吃鸡率都是最终棋盘统计：数字好的搭配多半是“这局本来就在赢”的棋盘，不说明照这样搭就能赢
 - 行/列标题悬停显示该羁绊**前/中/后排各有几个不同英雄**（站位是 `sets/set<N>.json` 的人工标注）
 - **只有一个五费英雄的羁绊**整行/列标橙（标题 title 注明原因）：五费英雄搭配什么都强，这类格子参考价值低。判定从数据推导（恰好一个英雄且费用 ≥5），见 `synergy.py` 的 `_solo5`
+- **协同差**（第三个指标）：格内均名 −（两羁绊各自边际均名之和 − 基线），负数 = 好于“两边平均水平叠加”的预期；边际含该格自身，是描述性对比，不是因果交互，仅在跨多个阵容组的格子里才略有参考。一个羁绊的棋盘全部同时带另一个时（嵌套），协同差恒等于“基线 − 另一羁绊的边际均名”，无从定义，格子显示 —
+- **灰字格** = 该格棋盘全部来自同一个阵容组（tactics.tools 的主流阵容分组，格子 title 写了组数）：数字只描述那一套阵容的最终棋盘（不代表强度），不是这对羁绊的性质；橙色行里的灰字格保留橙色底、文字变灰；**淡化格** = 场次 < 1000（`synergy.py` 的 `THIN`）
 - 以前只有 Riot 抽样（几个棋盘）的格子和详情页已删除
 - 由 `python3 build_site.py` 一并生成
+
+### 自采对局搭配矩阵（仅本地预览，2026-11-01）
+
+传入 `--riot-synergy`（tft-lab 的 synergy 导出）时，页面在两个矩阵下方追加「自采对局搭配矩阵」：
+同样的 种族×种族 / 种族×职业 两张表、同一个指标切换按钮，但**口径不同**——“带了”=对局结束时游戏
+判定该羁绊已激活（Riot 字段 `tier_current ≥ 1`，纹章也算），统计自采的全部排位棋盘，不限主流阵容。
+每格悬停显示 均名 / 吃鸡率 / 协同差 的 95% 区间（按“场”整群自助法）与 盘数/场数；格子没有详情页。
+职业×职业与未展示羁绊的配对只计数不入矩阵；n 低于导出阈值的配对在导出时已隐去（页面写明删了多少）。
+
+```bash
+# tft-lab 仓库里（读本地 SQLite，不联网；阈值与口径预注册于 tft-lab reports/synergy_pairs_prereg.md）：
+python -m tftlab.report.synergy_export --db data/frozen/tftlab_first_crawl_2026-10-31.sqlite --set 18 --host americas --start 2026-10-22 --end 2026-11-04 \
+    --patch 18.5 --out "../zmftft/cache/riot/synergy_set18_18.5_americas.json"
+# 本仓库里，仅本地预览（开发 / 个人 key 的数据不能上公开站点）：
+python3 build_site.py --data cache/snapshots/set18/18.5c.json --riot cache/riot/heroes_set18_18.5_americas.json \
+    --riot-synergy cache/riot/synergy_set18_18.5_americas.json --out cache/preview
+```
+
+不带 `--riot-synergy` 构建（= 推上线的版本）时整节不出现。导出自带 `publishable: false`、评级 C、
+估计量说明与人群说明；构建护栏（`check_riot_synergy`）核对 schema、赛季号，并逐一核对羁绊 apiName
+都在快照的官方羁绊表里，对不上就拒绝构建。
