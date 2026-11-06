@@ -239,7 +239,7 @@ def variants_html(vs, U, face, meta, total):
     rows = "".join('<tr%s><td class="us">%s%s</td><td>%s</td><td>%s</td><td>%.2f</td><td>%s</td><td>%s</td></tr>' % (
         ' class="thin"' if c["count"] < ITEM_THIN else "",
         "".join(face(U(u), "sm") for u in sorted(c["units"], key=lambda x: (U(x).get("cost") or 9, U(x)["name"]))),
-        "".join(item_img(meta, s) for s in c.get("spatItems") or []),
+        ('<span class="spx">%s</span>' % "".join(item_img(meta, s) for s in c["spatItems"])) if c.get("spatItems") else "",
         num(c["count"]), pct(c["count"] / total, 2), c["place"], pct(c["top4"] / c["count"]), pct(c["win"] / c["count"]))
         for c in sorted(vs, key=lambda c: -c["count"]))
     return ('<div class="smx"><table class="vt"><tr><th>变体（八人阵容 + 纹章）</th><th>场次</th><th>选率</th><th>均名</th>'
@@ -267,11 +267,15 @@ def similar_html(gid, cards, U, face):
     return "".join(rows) or '<p class="hint">没有和本组共用 2 名以上英雄的其他阵容组。</p>'
 
 
-WHY_NOT = ('<section id="why" class="whyn"><h3>为什么没有：早期至中期阵容 · 重置（D 牌）次数 · 强化符文 · 实测站位</h3>'
-           '<p class="hint">这几项需要对局<b>过程中</b>的数据：每个等级、每个阶段场上是什么、重置（D 牌）了几次、拿了哪些强化符文、'
-           '英雄站在哪一格。本站的数据（tactics.tools 的阵容统计）只有<b>对局结束时的最终棋盘</b>，本项目自采的 Riot 对局数据也一样：'
-           '没有逐等级的阵容、没有重置次数、Set 18 的对局数据里没有强化符文字段，也没有棋盘坐标。要补上它们需要在对局中'
-           '逐阶段采集快照（本项目规划中的 Phase 4，例如经游戏内插件，尚未开始）。在那之前，这里只放最终棋盘能支持的描述。</p></section>')
+def why_not(rel=""):
+    """「为什么没有」说明框；rel = 到站点根的相对前缀（详情页传 "../"）。"""
+    return ('<section id="why" class="whyn"><h3>为什么没有：重置（D 牌）次数 · 强化符文 · 实测站位 · 逐等级实测阵容</h3>'
+            '<p class="hint">这几项需要对局<b>过程中</b>的数据：每个等级、每个阶段场上是什么、重置（D 牌）了几次、拿了哪些强化符文、'
+            '英雄站在哪一格。本站的数据（tactics.tools 的阵容统计）只有<b>对局结束时的最终棋盘</b>，本项目自采的 Riot 对局数据也一样：'
+            '没有逐等级的阵容、没有重置次数、Set 18 的对局数据里没有强化符文字段，也没有棋盘坐标。'
+            '<a href="%strees.html" style="color:var(--ac)">变阵路线</a>页的「5级开局 → 7级中期 → 终局」来自 OP.GG 的官方数据接口'
+            '（它家应用的对局内采集）：外部数据，只有这三个阶段，不是本站实测。要自己补上逐等级数据需要在对局中逐阶段采集快照'
+            '（本项目规划中的 Phase 4，例如经游戏内插件，尚未开始）。在那之前，这里只放最终棋盘能支持的描述。</p></section>' % rel)
 
 COPY_JS = '''<script>(function(){document.addEventListener('click',function(ev){var b=ev.target.closest('[data-copy]');
 if(!b||!navigator.clipboard)return;navigator.clipboard.writeText(b.dataset.copy).then(function(){b.textContent='已复制';
@@ -410,7 +414,7 @@ def build(groups, comps, manual, total, U, face, meta, zh, tmeta, crawl=None, cr
     card_list = "".join(card_html(gmap[g], cards[g], total, base, U, meta, "comps/%s.html" % cards[g]["slug"]) for g in order)
     sec_crawl = crawl_table(crawl, order, cards, crawl_label) if crawl else ""
     page = '<section id="comps"><h2>阵容</h2><div class="box">%s</div><div class="clist">%s</div></section>%s%s' % (
-        legend, card_list, sec_crawl, WHY_NOT)
+        legend, card_list, sec_crawl, why_not())
     index = ('<section id="comps"><h2>阵容 <small class="hint">按场次（人气）排序，不是强度排行 · 评级 C（描述性）</small></h2>'
              '<p class="hint">均名 / 前四率 / 吃鸡率要和主流阵容组的基线比（均名 %.2f、前四率 %s、吃鸡率 %s），都来自最终棋盘：'
              '数字好的阵容多半是「这局本来就在赢」；%s。<span class="cs maj">★★★</span> = 本组过半终局棋盘上是 3★'
@@ -455,7 +459,7 @@ def build(groups, comps, manual, total, U, face, meta, zh, tmeta, crawl=None, cr
             '不说明该选哪个变体。</p>%s' % (ITEM_THIN, g["place"], variants_html(c["variants"], U, face, meta, total)),
             '<h3 id="pos">站位示意 <small>人工标注示意（非实测站位）：前/中/后排来自本站的标注，接口没有棋盘坐标</small></h3>%s' % positions_html(c["strip"], manual, U, face),
             '<h3 id="sim">相似阵容 <small>按八人阵容共用的英雄数</small></h3>%s' % similar_html(gid, cards, U, face),
-            '</section>', WHY_NOT,
+            '</section>', why_not("../"),
             crawl_block(crawl, cells.get(gid), U, face, meta, zh, tmeta, crawl_label, c["strip"]) if crawl else "",
             COPY_JS if code else ""])
         pages["comps/%s.html" % c["slug"]] = (c["name"], body)
@@ -490,6 +494,7 @@ CSS = '''.clist{display:grid;gap:14px}
 .pbl{position:absolute;left:0;right:0;border-top:1px dashed var(--ac);opacity:.7}
 .pbn{display:flex;gap:6px}.pbn span{flex:1;text-align:center;font-size:11px;color:var(--mu)}
 .utab .us{white-space:nowrap}.utab .us span{vertical-align:middle;margin-left:4px}.utab td small{color:var(--mu)}
+.spx{display:inline-flex;gap:2px;vertical-align:middle;margin-left:4px}.spx img{width:22px;height:22px;border-radius:3px}
 .sbar{display:inline-flex;width:90px;height:8px;border-radius:4px;overflow:hidden;background:var(--pn2);vertical-align:middle}.sbar i{display:block}
 .sbar .s1{background:#6c757d}.sbar .s2{background:#4dabf7}.sbar .s3{background:#f0b429}
 .its{white-space:nowrap}.it{display:inline-flex;flex-direction:column;align-items:center;margin-right:4px}.it img{width:24px;height:24px;border-radius:4px}.it small{font-size:10px;color:var(--mu)}

@@ -94,6 +94,7 @@ table.vt{border-collapse:collapse;width:100%}.vt td,.vt th{border-bottom:1px sol
 .pbl{position:absolute;left:0;right:0;border-top:1px dashed var(--ac);opacity:.7}
 .pbn{display:flex;gap:6px}.pbn span{flex:1;text-align:center;font-size:11px;color:var(--mu)}
 .utab .us{white-space:nowrap}.utab .us span{vertical-align:middle;margin-left:4px}.utab td small{color:var(--mu)}
+.spx{display:inline-flex;gap:2px;vertical-align:middle;margin-left:4px}.spx img{width:22px;height:22px;border-radius:3px}
 .sbar{display:inline-flex;width:90px;height:8px;border-radius:4px;overflow:hidden;background:var(--pn2);vertical-align:middle}.sbar i{display:block}
 .sbar .s1{background:#6c757d}.sbar .s2{background:#4dabf7}.sbar .s3{background:#f0b429}
 .its{white-space:nowrap}.it{display:inline-flex;flex-direction:column;align-items:center;margin-right:4px}.it img{width:24px;height:24px;border-radius:4px}.it small{font-size:10px;color:var(--mu)}
@@ -104,15 +105,42 @@ table.vt{border-collapse:collapse;width:100%}.vt td,.vt th{border-bottom:1px sol
 .tcode{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--mu)}.tcode code{color:var(--tx);word-break:break-all}
 .vt td a{color:var(--ac);text-decoration:none}.vt td a:hover{text-decoration:underline}.vt tr.thin td{opacity:.55}.vt th small{font-weight:400;color:var(--mu)}
 .cdet [id],section[id]{scroll-margin-top:72px}
-.trl{display:flex;flex-wrap:wrap;gap:8px 20px}.trl div{font-size:12px;color:var(--mu);display:flex;align-items:center;gap:4px}.trl b{color:var(--tx)}.trl .on{color:var(--ac);font-weight:700}
+.trl{display:flex;flex-wrap:wrap;gap:8px 20px}.trl div{font-size:12px;color:var(--mu);display:flex;align-items:center;gap:4px}.trl b{color:var(--tx)}.trl .on{color:var(--ac);font-weight:700}.vt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.vt-card{display:block;background:var(--pn);border:1px solid var(--bd);border-radius:var(--r);padding:12px;color:var(--tx);text-decoration:none}
+.vt-card img{width:26px;height:26px;background:#000;border-radius:50%;padding:2px;float:right}
+.vt-card b{font-size:15px}.vt-card small{display:block;color:var(--mu);margin:2px 0 8px}
+a.vt-card:hover{border-color:var(--ac)}.vt-card.vt-none{opacity:.55}
+.vt-cheap{display:flex;flex-wrap:wrap;gap:4px}
+.vt-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0}
+.vt-head img{width:34px;height:34px;background:#000;border-radius:50%;padding:3px}.vt-head h2{margin:0}
+.vt-tree{background:var(--pn);border:1px solid var(--bd);border-radius:var(--r);padding:14px;margin:14px 0}
+.vt-kids{margin:10px 0 0 14px;padding-left:14px;border-left:2px solid var(--bd)}
+.vt-mid{margin:12px 0}
+.vt-stage,.vt-leaf{background:var(--pn2);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin:8px 0}
+.vt-leaf{border-left:3px solid var(--ac)}
+.vt-sh{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:8px}
+.vt-lv{background:var(--bg);border:1px solid var(--bd);border-radius:99px;padding:1px 10px;font-size:12px;color:var(--mu)}
+.vt-nm{font-size:15px}
+.vt-wr{font-size:12px;color:var(--mu);cursor:help}.vt-wr b{color:var(--tx);font-size:14px}.vt-wr small{margin-left:4px}
+.vt-n{font-size:12px;color:var(--mu)}
+.vt-tier{font-size:12px;color:var(--mu);border:1px dashed var(--bd);border-radius:99px;padding:1px 10px;cursor:help}
+.vt-board{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
+.vt-u{position:relative;display:inline-flex;flex-direction:column;align-items:center;gap:2px;padding:2px;border-radius:8px}
+.vt-u.vt-nu{outline:2px solid var(--ac);outline-offset:0}
+.vt-s3{position:absolute;top:-6px;right:-4px;font-style:normal;font-size:10px;font-weight:800;color:#111;background:var(--ac);border-radius:4px;padding:0 3px;cursor:help}
+.vt-it{display:flex;gap:1px}.vt-it img{width:16px;height:16px;border-radius:3px;cursor:help}
+.vt-diff{font-size:12px;color:var(--tx);margin-top:6px}.vt-diff .vt-cut{color:var(--mu)}
+.vt-tr{font-size:12px;color:var(--mu);margin-top:4px}.vt-tr b{color:var(--ac)}
+.vt-st4{font-size:12px;color:var(--mu);margin-top:8px;cursor:help}.vt-st4 b{color:var(--tx)}
+@media(max-width:800px){.vt-kids{margin-left:4px;padding-left:8px}}
 @media(max-width:800px){nav .wrap{flex-wrap:wrap;height:auto;padding:8px 12px}nav input{width:100%;margin:0}.trow{grid-template-columns:1fr}.filters{padding:10px}}
 </style></head><body>
-<nav><div class="wrap"><a class="lg" href="../index.html">zmftft</a><a href="../index.html">首页</a><a href="../comps.html">阵容</a><a href="../class.html">职业站位</a><a href="../origin.html">种族站位</a><a href="../heroes.html">英雄数据</a><a href="../synergy.html" class="cur">羁绊搭配</a><a href="../craft.html">装备合成</a></div></nav>
-<div class="wrap"><header><h1>日蚀骑士 × 召唤师</h1><p><span class="pill">Set 18 · 版本 18.5c</span><span class="pill">排位 · 钻石以上 · 地区未注明</span><span class="pill">1,563,397 个棋盘</span><span class="pill">数据截至 2026-11-01 15:11 UTC</span></p>
+<nav><div class="wrap"><a class="lg" href="../index.html">zmftft</a><a href="../index.html">首页</a><a href="../comps.html">阵容</a><a href="../trees.html">变阵路线</a><a href="../class.html">职业站位</a><a href="../origin.html">种族站位</a><a href="../heroes.html">英雄数据</a><a href="../synergy.html" class="cur">羁绊搭配</a><a href="../craft.html">装备合成</a></div></nav>
+<div class="wrap"><header><h1>日蚀骑士 × 召唤师</h1><p><span class="pill">Set 18 · 版本 18.6</span><span class="pill">排位 · 钻石以上 · 地区未注明</span><span class="pill">513,646 个棋盘</span><span class="pill">数据截至 2026-11-06 01:50 UTC</span></p>
 <p>数据来源 <a href="https://tactics.tools/zh/units" style="color:var(--ac)">tactics.tools</a> · 图标 Community Dragon</p>
 
 </header>
-<section><p><a href="../synergy.html" style="color:var(--ac)">← 返回矩阵</a></p><h2>日蚀骑士 × 召唤师</h2><h3>tactics.tools 主流阵容</h3><div class="smx"><table class="vt"><tr><th>英雄组合（日蚀骑士/召唤师 内）</th><th>均名</th><th>前四</th><th>吃鸡</th><th>场次</th><th>选率</th><th>格内占比</th></tr><tr><td class="us"><span class="av sm" style="--c:#207ac7" title="阿兹尔"><img src="https://raw.communitydragon.org/16.21/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_azir/tft18_azir_square.tft_set18.png" alt="阿兹尔" loading="lazy" onerror="this.style.opacity=.2"></span><span class="av sm" style="--c:#11b288" title="凯尔"><img src="https://raw.communitydragon.org/16.21/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_kayle/tft18_kayle_square.tft_set18.png" alt="凯尔" loading="lazy" onerror="this.style.opacity=.2"></span><span class="av sm" style="--c:#9aa4af" title="蕾欧娜"><img src="https://raw.communitydragon.org/16.21/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_leona/tft18_leona_square.tft_set18.png" alt="蕾欧娜" loading="lazy" onerror="this.style.opacity=.2"></span><span class="av sm" style="--c:#11b288" title="瑟庄妮"><img src="https://raw.communitydragon.org/16.21/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_sejuani/tft18_sejuani_square.tft_set18.png" alt="瑟庄妮" loading="lazy" onerror="this.style.opacity=.2"></span><span class="av sm" style="--c:#9aa4af" title="约里克"><img src="https://raw.communitydragon.org/16.21/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_yorick/tft18_yorick_square.tft_set18.png" alt="约里克" loading="lazy" onerror="this.style.opacity=.2"></span><div class="sub">阿兹尔、凯尔、蕾欧娜、瑟庄妮、约里克</div></td><td>4.46</td><td>52%</td><td>13%</td><td>11141</td><td>0.71%</td><td>100%</td></tr></table></div><p class="hint">选率 = 场次 / 全部棋盘数；格内占比 = 该组合在这格里的场次份额。主流阵容棋盘的平均名次是 4.25、吃鸡率是 13.6%（均匀基线 12.5%）；这些都是最终棋盘统计，不代表强度。</p></section>
+<section><p><a href="../synergy.html" style="color:var(--ac)">← 返回矩阵</a></p><h2>日蚀骑士 × 召唤师</h2><h3>tactics.tools 主流阵容</h3><div class="smx"><table class="vt"><tr><th>英雄组合（日蚀骑士/召唤师 内）</th><th>均名</th><th>前四</th><th>吃鸡</th><th>场次</th><th>选率</th><th>格内占比</th></tr><tr><td class="us"><span class="av sm" style="--c:#207ac7" title="阿兹尔"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_azir/tft18_azir_square.tft_set18.png" alt="阿兹尔" loading="lazy" onerror="this.style.opacity=.2"></span><span class="av sm" style="--c:#11b288" title="凯尔"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_kayle/tft18_kayle_square.tft_set18.png" alt="凯尔" loading="lazy" onerror="this.style.opacity=.2"></span><span class="av sm" style="--c:#9aa4af" title="蕾欧娜"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_leona/tft18_leona_square.tft_set18.png" alt="蕾欧娜" loading="lazy" onerror="this.style.opacity=.2"></span><span class="av sm" style="--c:#11b288" title="瑟庄妮"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_sejuani/tft18_sejuani_square.tft_set18.png" alt="瑟庄妮" loading="lazy" onerror="this.style.opacity=.2"></span><span class="av sm" style="--c:#9aa4af" title="约里克"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_yorick/tft18_yorick_square.tft_set18.png" alt="约里克" loading="lazy" onerror="this.style.opacity=.2"></span><div class="sub">阿兹尔、凯尔、蕾欧娜、瑟庄妮、约里克</div></td><td>4.47</td><td>52%</td><td>12%</td><td>3660</td><td>0.71%</td><td>100%</td></tr></table></div><p class="hint">选率 = 场次 / 全部棋盘数；格内占比 = 该组合在这格里的场次份额。主流阵容棋盘的平均名次是 4.28、吃鸡率是 13.6%（均匀基线 12.5%）；这些都是最终棋盘统计，不代表强度。</p></section>
 <footer>非官方粉丝站，数据仅供参考。<br>云顶攻略台 zmftft was created under Riot Games&#x27; &quot;Legal Jibber Jabber&quot; policy using assets owned by Riot Games.  Riot Games does not endorse or sponsor this project.<br>云顶攻略台 zmftft isn&#x27;t endorsed by Riot Games and doesn&#x27;t reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.</footer></div>
 <script>
 (function(){

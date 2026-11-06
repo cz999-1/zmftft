@@ -20,6 +20,7 @@ zmftft 的目标很简单：**用最新数据自动生成一张中文、当前�
 | 问题 | zmftft 的做法 |
 | --- | --- |
 | 不知道玩什么阵容 | 首页和「阵容」页：tactics.tools 主流阵容组按场次（人气）列出，op.gg 式卡片（羁绊、八人阵容、3★ / 成装标记）+ 每组详情页；不是强度排行，强度评级标「待验证」 |
+| 开局拿了一手某羁绊，不知道往哪变 | 「变阵路线」页：每个有 1/2 费英雄的羁绊一页，5级开局 → 7级中期 → 终局的变阵树（OP.GG 官方数据接口的三阶段路线，带回合胜率与拿牌/换下差异；回看式统计，不是拿牌建议） |
 | 不清楚羁绊里谁站前/中/后排 | 职业、起源两张矩阵：每个羁绊 × 前排 / 中排 / 后排，列出对应英雄 |
 | 英雄费用一眼看不出 | 卡片按费用着色，并显示选取率和满装率（不再显示平均名次和前四率：它们来自最终棋盘，高费卡、后期才成型的卡天然名次更好） |
 | 不知道带什么装 | 每个英雄列出出场最多的二件套 / 三件套，附吃鸡率（全体基线 12.5%）与场次 |
@@ -31,12 +32,14 @@ zmftft 的目标很简单：**用最新数据自动生成一张中文、当前�
 
 ```
 tactics.tools（英雄出装 / 羁绊表现统计）  ┐
-Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python 脚本 → 7 个 HTML 页面 + 详情页 → GitHub Pages
+Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python 脚本 → 8 个 HTML 页面 + 详情页 → GitHub Pages
+OP.GG 官方 MCP 接口（meta 阵容三阶段路线）  ┘
 ```
 
 - **数据源**
   - [tactics.tools](https://tactics.tools/zh/units)：英雄选取率、成装数分布（满装率）、出装统计、主流阵容
   - [Community Dragon](https://raw.communitydragon.org/)：英雄中文名、费用、羁绊归属、头像/装备图标、装备配方（`zh_cn.json`）
+  - [OP.GG 官方 MCP 接口](https://github.com/opgginc/opgg-mcp)（`mcp-api.op.gg/mcp`，MIT）：meta 阵容与各套的 5级/7级/终局三阶段棋盘、回合胜负计数（变阵路线页）。**op.gg 网站条款明文禁止抓取页面**（policies/agreement，2026-11-05 读取），本站因此只用这个它家主动提供的程序接口，不抓网页，页面注明来源
 - **人工标注** `sets/set<N>.json`（官方数据里没有的部分）：羁绊类型（职业 / 种族）与行顺序、每个英雄的前/中/后排、要隐藏的 id（拉克丝的羁绊形态）、改名。按 id 写，名字只为方便阅读
 - **生成脚本**（只用 Python 标准库，无第三方依赖）
   - `fetch_data.py`：每个数据源只请求一次，原始响应缓存在 `cache/raw/`（已 gitignore，6 小时内复用），只把页面用到的字段存成快照 `cache/snapshots/set<N>/<patch>.json`（带 set、版本、分段、tactics.tools 数据更新时间、抓取时间、来源）。快照**不入库**：仓库里只有由它生成的页面和它的 SHA-256（见「页面数据快照」）
@@ -45,8 +48,10 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
   - `tests/`：`python3 -m unittest discover -s tests`（标准库，不联网；用 `tests/fixture.py` 生成的假快照：真实 id 和名字、编造的数字。本地 `cache/snapshots/` 里有真实快照时也检查它）
   - `craft.py`：从 Community Dragon 读取当前赛季配方，生成装备合成矩阵、纹章、冠冕
   - `comps.py`：阵容卡片、阵容页和每组详情页 `comps/<hash>.html`（见「阵容」）
+  - `opgg.py`：OP.GG 官方 MCP 接口的最小客户端（一次 `tft_list_meta_decks` 调用）+ 白名单抽取（`checks.OPGG_*`）
+  - `trees.py`：变阵路线页和每个开局羁绊的详情页 `trees/<hash>.html`（见「变阵路线」）
   - `build_site.py`：把以上内容组装成多页站点（共享顶部导航，内联 CSS/JS）：`index.html` 首页（阵容卡片 + 下线说明 + 各页入口）、`comps.html` 阵容、`class.html` 职业站位、`origin.html` 种族站位（只有 1 名英雄的种族合并为「单一英雄种族」一行）、`heroes.html` 英雄数据（见「英雄数据」）、`craft.html` 装备合成；页面间用相对链接互跳，旧的 `#craft` 等锚点会自动跳到新页面；有装备图标的页面上悬停（手机上点按）图标显示合成配方：两件散件和效果，取自快照里的合成表（tactics.tools 用新 id、合成表用 Riot 的旧 api 名的装备按中文名对上；`#itd` 按页生成，恰好覆盖该页显示的装备）
-- **部署**：根目录的 `*.html` 和 `comps/`、`synergy/` 两个详情页目录推到 `main`，由 GitHub Pages 直接托管
+- **部署**：根目录的 `*.html` 和 `comps/`、`synergy/`、`trees/` 三个详情页目录推到 `main`，由 GitHub Pages 直接托管
   - 根目录的 `riot.txt` 是 Riot 开发者平台验证本站网址用的：申请 production key 时 Riot 给的验证码，文件里只有这串码。2026-11-01 重填申请后换过一次码。构建不碰它；只在 Riot 换码时改它，同时改 `tests/test_site.py` 里的 `RIOT_TXT`。测试会检查它还在、内容没变（只忽略结尾一个换行）
 
 ### 数据从哪来（分工）
@@ -56,6 +61,7 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
 | **Riot TFT Match API**（官方，需 key） | 本地小样本自检、与 tactics.tools 对比；不上页面（样本太小，而且开发 / 个人 key 的数据按 Riot 规定不能用于公开站点） |
 | **Community Dragon** | 现有主数据：完整游戏文件解包（英雄中文名、费用、羁绊归属、羁绊效果数值、合成配方、技能描述、更全的图标），更新最快 |
 | **tactics.tools** | 大样本统计：选取率、成装数、出装、主流阵容 |
+| **OP.GG 官方 MCP 接口** | meta 阵容的三阶段路线（5级/7级/终局 + 回合胜负计数），变阵路线页专用；它家应用的对局内采集，是 Riot Match API 没有的过程数据 |
 
 详见 [data/riot/README.md](data/riot/README.md)。
 
@@ -82,10 +88,12 @@ Community Dragon zh_cn（中文名称、图标、合成配方）┤→ Python �
 python3 -m data.riot.match_api   # 可选，需 RIOT_API_KEY；随后 python3 -m data.riot.compare
 python3 build_site.py            # 抓取 → 存快照 cache/snapshots/set<N>/<patch>.json → 只从快照生成页面
 python3 build_site.py --no-cache # 强制重新抓取（不用 cache/raw/）
-python3 build_site.py --data cache/snapshots/set18/18.5c.json   # 只用已有快照重新生成页面，不联网
+python3 build_site.py --data cache/snapshots/set18/18.6.json   # 只用已有快照重新生成页面，不联网
 # 把下面「页面数据快照」那一行换成新快照的文件名和 SHA-256（build_site.py 最后会打印）
-git add *.html comps synergy README.md && git commit -m "refresh data" && git push
+git add *.html comps synergy trees README.md && git commit -m "refresh data" && git push
 ```
+
+`fetch_data.py --offline` 需要 `cache/raw/` 里有全部原始响应（包括 `opgg_meta_decks.json`）：加上 OP.GG 源之后，先联网跑过一次才能离线重建。
 
 新赛季上线后，Community Dragon 与 tactics.tools 更新数据，重跑即可；赛季编号相关的过滤在脚本中自动检测/可调整。
 
@@ -95,9 +103,9 @@ git add *.html comps synergy README.md && git commit -m "refresh data" && git pu
 
 | 快照 | SHA-256 | 内容 |
 |---|---|---|
-| `cache/snapshots/set18/18.5c.json` | `424cd5849a93b6351d69e26a685024f7d517e7da80a768df50e8828aab90ed99` | tactics.tools 18.5c · 排位 · 钻石以上，1,563,397 个棋盘，数据截至 2026-11-01 15:11 UTC；抓取于 2026-11-01 17:00 UTC（英雄页上线时用同一批 `cache/raw/` 以 `--offline` 重建，补了英雄 均名/前四/吃鸡、星级数据、最高吃鸡组合与阵容分组字段；阵容页上线时（2026-11-03）再以 `--offline` 重建，补了阵容组块 `comp_groups`（主C、各星级行、成装分布、单件/两件装备、羁绊档位、名次与终局等级分布、阵容码；不含玩家名）和官方羁绊激活人数与图标 `official.trait_meta`，其余字段逐字节不变）；Community Dragon 数据取自 latest（16.21.8342754），图片固定在 `16.21` 目录 |
+| `cache/snapshots/set18/18.6.json` | `fe2a587da1e5cf7af95ee410093aa958df96281bd1dbffce7d5321a893d1bdbb` | tactics.tools 18.6 · 排位 · 钻石以上，513,646 个棋盘（18.6 刚上线，样本还在累积），数据截至 2026-11-06 01:50 UTC；抓取于 2026-11-06 02:45 UTC。新增 `opgg_decks`：OP.GG 官方 MCP 接口的 10 套 meta 阵容三阶段路线（白名单字段 `checks.OPGG_*`，无任何玩家字段）。Community Dragon 数据取自 latest（16.22.8348910），图片固定在 `16.22` 目录（18.5c 页面用的是 16.21：钉目录就是为了换版本后旧图不被 latest 带走）。上一份 18.5c 快照（sha `424cd584…`）留在本地 `cache/snapshots/` |
 
-核对：`python3 -c "import fetch_data; print(fetch_data.sha256('cache/snapshots/set18/18.5c.json'))"`。快照按 LF 换行写，同一份数据在任何系统上哈希相同；用它跑 `python3 build_site.py --data …` 应得到和仓库里一模一样的页面。
+核对：`python3 -c "import fetch_data; print(fetch_data.sha256('cache/snapshots/set18/18.6.json'))"`。快照按 LF 换行写，同一份数据在任何系统上哈希相同；用它跑 `python3 build_site.py --data …` 应得到和仓库里一模一样的页面。
 
 **图片地址固定在版本目录。** 页面里的头像和装备图都指向 `raw.communitydragon.org/<版本>/…`（抓取时 latest 对应的补丁目录，例如 `16.21`），不指向 `latest/`：游戏换到 Set 19 后，latest 里的 Set 18 图会变或消失，固定目录里的不会。护栏会拒绝没有版本目录的快照。推送前可以联网检查一遍：`python3 checks.py --images`（每个图片地址发一次 HEAD 请求，约 160 个，40 秒左右）。以后自托管图片时再换掉。
 
@@ -106,9 +114,10 @@ git add *.html comps synergy README.md && git commit -m "refresh data" && git pu
 1. **顶栏**：版本标识、搜索框、过滤器、区块导航
 2. **首页**：阵容卡片（同「阵容」页）+ 已下线的板块和原因（见下文）+ 各页入口
 3. **阵容**（`comps.html` + `comps/<hash>.html`）：主流阵容组按场次排列 + 每组详情（见下文「阵容」）
-4. **职业矩阵 / 起源矩阵**：羁绊 × 前中后排的英雄卡片（费用、数据、二/三件套）
-5. **英雄数据**（`heroes.html`）：全英雄 选率 / 吃鸡率 / 均名 排序 + 最高吃鸡出装 + 悬停面板（见下文「英雄数据」）
-6. **装备合成**（`#craft`）：Set 18 散件 10×10 矩阵 + 纹章 + 冠冕
+4. **变阵路线**（`trees.html` + `trees/<hash>.html`）：每个 1/2 费开局羁绊的变阵树（见下文「变阵路线」）
+5. **职业矩阵 / 起源矩阵**：羁绊 × 前中后排的英雄卡片（费用、数据、二/三件套）
+6. **英雄数据**（`heroes.html`）：全英雄 选率 / 吃鸡率 / 均名 排序 + 最高吃鸡出装 + 悬停面板（见下文「英雄数据」）
+7. **装备合成**（`#craft`）：Set 18 散件 10×10 矩阵 + 纹章 + 冠冕
 
 ## 非目标
 
@@ -118,7 +127,7 @@ git add *.html comps synergy README.md && git commit -m "refresh data" && git pu
 
 ## 致谢
 
-数据与图标来自 tactics.tools 与 Community Dragon。本项目与 Riot Games 无关；《云顶之弈》及相关素材版权归 Riot Games 所有。每个页面的页脚都有 Riot 对粉丝作品要求的声明，原文照抄自 [riotgames.com/en/legal](https://www.riotgames.com/en/legal)（Legal Jibber Jabber 第 6 条），只填入了本站名称。页脚还有 Riot 开发者政策要求第三方产品展示的法律声明（legal boilerplate），原文照抄自 [developer.riotgames.com/policies/general](https://developer.riotgames.com/policies/general)（Core Policies，2025-05-29 版），同样只填入了本站名称。
+数据与图标来自 tactics.tools、Community Dragon 与 OP.GG（变阵路线页，经其官方 MCP 接口）。本项目与 Riot Games 无关；《云顶之弈》及相关素材版权归 Riot Games 所有。每个页面的页脚都有 Riot 对粉丝作品要求的声明，原文照抄自 [riotgames.com/en/legal](https://www.riotgames.com/en/legal)（Legal Jibber Jabber 第 6 条），只填入了本站名称。页脚还有 Riot 开发者政策要求第三方产品展示的法律声明（legal boilerplate），原文照抄自 [developer.riotgames.com/policies/general](https://developer.riotgames.com/policies/general)（Core Policies，2025-05-29 版），同样只填入了本站名称。
 
 ## Set 迁移清单（新赛季上线时）
 
@@ -136,6 +145,7 @@ git add *.html comps synergy README.md && git commit -m "refresh data" && git pu
    - 英雄数、棋盘数等超出 `checks.py` 的 `BOUNDS`；
    - tactics.tools 页面上的筛选文字（「排位模式 钻石以上 18.5c」）或标题（「Set 18」）换了格式（`fetch_data.py` 的 `units_page`）。
 6. 旧赛季的快照留在本地 `cache/snapshots/set18/`（不入库）；README 里 Set 18 的例子按需更新。
+7. 变阵路线页自动跟随：OP.GG 官方接口只给当前赛季，英雄/羁绊 id 经新赛季的官方数据解析，开局羁绊从「有 1/2 费英雄」推导。两种情况要人工动手：护栏报「不在官方表里（新召唤物？）」时在 `checks.py` 的 `OPGG_SUMMONS` 登记新战斗召唤物；接口返回结构变了时 `opgg.py` 会大声报错（原始响应在 `cache/raw/opgg_meta_decks.json` 可离线排查）。
 
 ## 已下线的板块（2026-11-01）
 
@@ -153,10 +163,19 @@ git add *.html comps synergy README.md && git commit -m "refresh data" && git pu
 照 op.gg 阵容页的呈现方式（https://op.gg/zh-cn/tft/meta-trends/comps），数据是 tactics.tools 阵容页的 5 个阵容组（每组一套阵容 + 最多 9 个展示变体，快照 `comp_groups` 与 `comps`；tactics.tools 的变体列表里有逐字重复的行，构建时去重，所以页面上是 6–9 个）。首页和 `comps.html` 是同一组卡片，`comps.html` 多一段口径说明；每组有详情页 `comps/<hash>.html`（`comps.py`，每次构建清空重写）。
 
 - **排序**：按场次（人气），**不是强度排行**；每张卡写「强度评级：待验证」。阵容强度要等 tft-lab 的阵容表合并和新的预注册检验（tft-lab `reports/comp_merge_instructions.md`）
-- **卡片**：场次、选率（场次 / 全部棋盘）、均名、前四率、吃鸡率，每项旁边写主流阵容组的基线（均名 4.29、前四率 54.1%、吃鸡率 13.3%；均匀基线 4.50 / 50% / 12.5%）；本组 ≥ 50% 棋盘激活的羁绊（官方激活人数，如 峡谷野怪 7）；八人阵容（出场最多的变体，按费用排）
+- **卡片**：场次、选率（场次 / 全部棋盘）、均名、前四率、吃鸡率，每项旁边写主流阵容组的加权基线（随快照变动，页面上注明；均匀基线 4.50 / 50% / 12.5%）；本组 ≥ 50% 棋盘激活的羁绊（官方激活人数，如 峡谷野怪 7）；八人阵容（出场最多的变体，按费用排）
 - **★★★**：该英雄 3★（含 4★）占本组棋盘 ≥ 50% 金色、20%–50% 灰色，取自 tactics.tools 的星级行。tactics.tools 自己的 `starUnits` 不用：它的目标星级随费用变（五费记的是 2★）。**1st / 2nd / 3rd**：本组每盘平均持有成装最多的三个英雄，头像下是它最常带的 3 件。两者都描述玩家怎么玩，页面写明不是“该追三星 / 该给谁装备”的建议
 - **详情页**：羁绊各档（高亮最常见档位）、英雄与装备（出场、星级分布、每盘成装、满装率、常带成装与两件组合的场次和占比——不给均名，场次 < 500 淡化）、名次分布（虚线 = 12.5%）、终局等级**只给分布**（各等级均名几乎由活了多久决定，不放）、去重后的变体（附“差别主要反映棋盘成型到哪一步”的说明，场次 < 500 淡化）、站位示意（**人工标注**，非实测站位）、相似阵容、tactics.tools 阵容码（可复制）
-- **为什么没有**：op.gg 的「早期至中期阵容（逐等级）」「重置次数」「推荐强化符文」和实测站位需要对局过程中的逐阶段数据；本站的数据源只有最终棋盘（Set 18 的对局数据里也没有强化符文字段），页面用一个灰框说明
+- **为什么没有**：「重置次数」「推荐强化符文」和实测站位需要对局过程中的逐阶段数据；本站的数据源只有最终棋盘（Set 18 的对局数据里也没有强化符文字段），页面用一个灰框说明。逐等级路线由「变阵路线」页部分补上（OP.GG 官方接口的 5级/7级/终局三阶段，外部数据、非本站实测），灰框也这么写
+
+## 变阵路线（trees.html + trees/<hash>.html，2026-11-05）
+
+每个**有 1/2 费英雄的种族/职业**一张卡（开局羁绊，逐赛季从官方数据推导；Set 18 有 21 个），有数据的链接到该羁绊的变阵树页：**树根 = 5级开局棋盘**（该羁绊 ≥ 2 名英雄），往下是 **7级中期**，叶子 = **终局阵容**；同一开局/中期（OP.GG 的 deckId 相同）只画一个节点，于是不同终局在它下面分叉——例如 峡谷野怪 开局 → 同一个 7级中期 → 三种终局（远古巨龙+纳尔塔里克 / 远古巨龙+茂凯德莱文 / 九野怪 reroll，含深红锋喙鸟）。分叉节点的回合计数为走到下方任一终局的对局共用，页面原文注明。
+
+- **数据**：OP.GG 官方 MCP 接口的 meta 阵容（当前 10 套；见「数据源」的合规说明——网页抓取被其条款禁止，本站只用官方接口）。覆盖不到的开局羁绊标「暂无路线」
+- **每个节点**：棋盘（按费用排，亮框 = 相比上一阶段新增）、**回合胜率**（该阶段 board 的战斗回合 win/play，带回合数）、拿牌/换下差异行、羁绊行；终局行另有 3★ 标记、常带装备（悬停看配方）、场次 / 均名 / 前四 / 吃鸡 / 每局选取与「OP.GG 评级」徽章、可复制的阵容码
+- **口径（页面原文注明）**：回看式统计——样本是最终成型为该阵容的对局，含幸存者偏差，描述“成型者当时拿了什么”，不是拿牌建议；终局行按 OP.GG 均名排序（**OP.GG 数据，非本站评级**），本站的强度评级仍为「待验证」；战斗召唤物不显示（脚注计数）；评级 C（描述性）
+- 这一页的页脚来源行是 OP.GG 官方接口，不是 tactics.tools（`build_site.py` 按页替换）
 
 ### 自采阵容数据（仅本地预览，2026-11-03）
 

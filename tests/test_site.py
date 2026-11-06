@@ -37,29 +37,31 @@ class Site(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             build_site.render(self.snap, Path(d))
             pages = {p.name: p.read_text(encoding="utf-8") for p in Path(d).glob("*.html")}
-            self.assertEqual(set(pages), {"index.html", "comps.html", "class.html", "origin.html", "heroes.html",
-                                          "synergy.html", "craft.html"})
+            self.assertEqual(set(pages), {"index.html", "comps.html", "trees.html", "class.html", "origin.html",
+                                          "heroes.html", "synergy.html", "craft.html"})
             self.assertTrue(list(Path(d, "synergy").glob("*.html")))
             details = {"comps/" + p.name: p.read_text(encoding="utf-8") for p in Path(d, "comps").glob("*.html")}
             self.assertEqual(len(details), len(self.snap["comp_groups"]))
+            tdetails = {"trees/" + p.name: p.read_text(encoding="utf-8") for p in Path(d, "trees").glob("*.html")}
+            self.assertTrue(tdetails)
             self.assertIn("版本 %s" % self.snap["meta"]["patch_label"], pages["index.html"])
             for gone in ("阵眼—", "三星价值</h3>", "羁绊强度</h3>", "最强阵容</h3>", "站位结论（"):
-                for name, html in list(pages.items()) + list(details.items()):
+                for name, html in list(pages.items()) + list(details.items()) + list(tdetails.items()):
                     self.assertNotIn(gone, html, name)
             self.assertIn("人工标注", pages["class.html"])
             for page in ("class.html", "origin.html"):  # cards: 选率 and 满装率, no 均名 / 前四 (owner, 2026-11-01)
                 self.assertIn("满装率", pages[page]); self.assertIn("选率", pages[page])
                 self.assertNotIn("均名", pages[page]); self.assertNotIn("前四", pages[page])
             # item icons carry their recipe data (owner, 2026-11-01): per page, one entry per item shown, all components
-            for page in ("class.html", "origin.html", "heroes.html", "comps.html", "index.html") + tuple(details):
-                html = pages.get(page) or details[page]
+            for page in ("class.html", "origin.html", "heroes.html", "comps.html", "index.html") + tuple(details) + tuple(tdetails):
+                html = pages.get(page) or details.get(page) or tdetails[page]
                 tips = json.loads(re.search(r'<script type="application/json" id="itd">(.*?)</script>', html, re.S).group(1))
                 shown = set(re.findall(r'data-it="([^"]+)"', html))
                 self.assertTrue(shown); self.assertEqual(set(tips["i"]), shown)
                 self.assertEqual(sorted(tips["c"]), sorted(c for c, _, _ in self.snap["craft"]["components"]))
             for page in ("synergy.html", "craft.html"):
                 self.assertNotIn('id="itd"', pages[page])
-            allpages = list(pages.values()) + list(details.values()) + [
+            allpages = list(pages.values()) + list(details.values()) + list(tdetails.values()) + [
                 p.read_text(encoding="utf-8") for p in Path(d, "synergy").glob("*.html")]
             self.assertFalse([h for h in allpages if "communitydragon.org/latest/" in h])
             import html
@@ -234,6 +236,10 @@ class Site(unittest.TestCase):
                 self.assertIn(needle, h, name)
             self.assertNotIn("compcrawl", h)
             self.assertNotIn("该等级均名", h)  # final level: distribution only, no per-level placement
+            # emblem icons in the variants table are size-constrained (.spx), never bare full-size imgs
+            for m in re.finditer(r'<td class="us">(.*?)</td>', h):
+                self.assertNotRegex(m.group(1), r'</span><img [^>]*data-it=', name)
+        self.assertTrue(any('<span class="spx">' in h for h in details.values()))  # fixture has spatItems variants
 
     def test_comps_pages_mark_three_star_and_item_carries(self):
         """★★★ gold = 3-star on >= 50% of the group's boards, grey = 20-50%; 1st/2nd/3rd = the units holding the
@@ -337,13 +343,100 @@ class Site(unittest.TestCase):
         self.assertNotIn("2 &gt; 2", h)
 
     def test_committed_pages_carry_no_crawl_data(self):
-        """The pages in the repository (what GitHub Pages serves) never carry crawl / development-key data."""
-        pages = sorted(ROOT.glob("*.html")) + sorted(ROOT.glob("comps/*.html")) + sorted(ROOT.glob("synergy/*.html"))
+        """The pages in the repository (what GitHub Pages serves) never carry crawl / development-key data,
+        and no player identifier of any source."""
+        pages = sorted(ROOT.glob("*.html")) + sorted(ROOT.glob("comps/*.html")) + sorted(ROOT.glob("synergy/*.html")) \
+            + sorted(ROOT.glob("trees/*.html"))
         self.assertTrue(pages)
         for p in pages:
             h = p.read_text(encoding="utf-8")
-            for marker in ("syncrawl", "compcrawl", "仅限本地预览", "自采 Riot API", "自采数据"):
+            for marker in ("syncrawl", "compcrawl", "仅限本地预览", "自采 Riot API", "自采数据",
+                           "puuid", "gameName", "tagLine", "recentWins"):
                 self.assertNotIn(marker, h, "%s: %s" % (p.name, marker))
+
+    def render_trees(self):
+        with tempfile.TemporaryDirectory() as d:
+            build_site.render(self.snap, Path(d))
+            page = Path(d, "trees.html").read_text(encoding="utf-8")
+            details = {p.name: p.read_text(encoding="utf-8") for p in Path(d, "trees").glob("*.html")}
+        return page, details
+
+    def test_trees_page_lists_every_cheap_trait_and_labels_the_source(self):
+        """变阵路线 (owner, 2026-11-05): one card per trait that has a 1/2-cost unit (derived from the official
+        data, so it survives a set change); covered traits link to their tree page, the rest say 暂无路线; the
+        data is OP.GG's official MCP interface and every page says so, with the survivorship caveat and without
+        touching the site's own 待验证 promise."""
+        import trees as trees_mod
+        page, details = self.render_trees()
+        cheap = trees_mod.cheap_traits(self.snap["official"], self.snap["champions"], self.manual)
+        self.assertTrue(cheap)
+        self.assertEqual(page.count('class="vt-card'), len(cheap))
+        self.assertEqual(page.count('href="trees/'), len(details))
+        self.assertIn("暂无路线", page)  # the fixture's 3 decks cover at most 2 opener traits
+        for needle in ("OP.GG 官方数据接口", "评级 C（描述性）", "幸存者偏差", "非本站评级", "待验证",
+                       "5级开局 → 7级中期 → 终局", "回合胜率"):
+            self.assertIn(needle, page)
+        # the monster without traits and the hidden forms never become opener traits
+        self.assertFalse([t for t in cheap if not t["cheap"]])
+        hide = {i for i, _ in self.manual["hide"]}
+        self.assertFalse([u for t in cheap for u in t["cheap"] if u["id"] in hide or u["id"] == "TFT_FixtureMonster"])
+
+    def test_trees_detail_shows_the_fork_the_winrates_and_filters_summons(self):
+        """Decks A and B share the level-5 opener and the level-7 mid board (same deckId), so their trait page
+        shows ONE opener node, ONE mid node and TWO final leaves sorted by OP.GG avgPlacement; deck C's page
+        shows 回合胜率 — for the zero-count stage and filters the combat summon with a footnote."""
+        page, details = self.render_trees()
+        ab = next(h for h in details.values() if "测试阵容甲" in h)
+        self.assertIn("测试阵容乙", ab)
+        self.assertEqual(ab.count("· 开局</span>"), 1)   # shared opener renders once
+        self.assertEqual(ab.count("· 中期</span>"), 1)   # shared mid board renders once
+        self.assertEqual(ab.count('class="vt-leaf"'), 2)
+        self.assertLess(ab.index("测试阵容甲"), ab.index("测试阵容乙"))  # 均名 3.2 before 4.1 (OP.GG order, labeled)
+        self.assertIn("回合胜率 <b>56%</b>", ab)          # early: 2800 / 5000
+        self.assertIn('class="vt-u vt-nu"', ab)          # new units vs the previous stage are highlighted
+        self.assertIn("拿牌：", ab)
+        for needle in ("OP.GG 评级", "复制阵容码", '<a href="../trees.html" class="cur">变阵路线</a>',
+                       'href="../index.html"', "本页数据来源", "opgg-mcp"):
+            self.assertIn(needle, ab)
+        c = next(h for h in details.values() if "测试阵容丙" in h)
+        self.assertIn("回合胜率 —", c)
+        self.assertNotIn("DA_Elderwood18_Lifeblossom", c)
+        self.assertIn("战斗召唤物", c)
+        # the header pills describe the page's own source: no tactics.tools board count / scope on trees pages
+        for h in [page] + list(details.values()):
+            self.assertIn("OP.GG 官方接口 · %d 套 meta 阵容" % len(self.snap["opgg_decks"]), h)
+            self.assertIn("样本与分段 OP.GG 未注明", h)
+            self.assertNotIn("{:,} 个棋盘".format(self.snap["meta"]["total"]), h)
+            self.assertNotIn("排位 · %s" % self.snap["meta"]["rank_label"], h)
+
+    def test_builds_are_byte_identical_across_runs(self):
+        """README promises byte-identical rebuilds from one snapshot; 换下 order must not depend on the hash seed
+        (set iteration). Two in-process renders must match; the hash-seed case is covered by sorting in trees.py."""
+        import subprocess
+        outs = []
+        for k in range(2):
+            with tempfile.TemporaryDirectory() as d:
+                env = {"PYTHONUTF8": "1", "PYTHONHASHSEED": str(k + 1), "SYSTEMROOT": __import__("os").environ.get("SYSTEMROOT", "")}
+                with tempfile.TemporaryDirectory() as sd, mock.patch.object(fetch_data, "SNAPSHOTS", Path(sd)):
+                    snap_path = fetch_data.save(self.snap)
+                    code = ("import sys; sys.path.insert(0, %r); import build_site, fetch_data, json; from pathlib import Path; "
+                            "build_site.render(fetch_data.load(%r), Path(%r))") % (str(ROOT), str(snap_path), d)
+                    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env)
+                    self.assertEqual(r.returncode, 0, r.stderr[-2000:])
+                    outs.append({p.relative_to(d).as_posix(): p.read_bytes() for p in Path(d).rglob("*.html")})
+        self.assertEqual(sorted(outs[0]), sorted(outs[1]))
+        diff = [f for f in outs[0] if outs[0][f] != outs[1][f]]
+        self.assertEqual(diff, [])
+
+    def test_guard_catches_opgg_problems(self):
+        self.check_catches(lambda s, m: s.pop("opgg_decks"), "opgg_decks")
+        self.check_catches(lambda s, m: s["opgg_decks"][0].update(recentWins=[]), "白名单外")
+        self.check_catches(lambda s, m: s["opgg_decks"][0]["name"].update(zh_CN="x puuid y"), "玩家字段")
+        self.check_catches(lambda s, m: s["opgg_decks"][0]["early"]["units"][0].update(characterId="DA_New19_Summon"),
+                           "OPGG_SUMMONS")
+        self.check_catches(lambda s, m: s["opgg_decks"][0].update(teamCode="02xTFTSet%d" % (s["meta"]["set"] + 1)), "阵容码")
+        self.check_catches(lambda s, m: s["opgg_decks"][0]["middle"].update(win=10**9), "回合计数")
+        self.check_catches(lambda s, m: s["opgg_decks"][0]["stat"]["deck"].update(avgPlacement=11), "出界")
 
     def test_crawl_builds_refuse_to_write_into_the_repo(self):
         with self.assertRaises(SystemExit):

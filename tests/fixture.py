@@ -30,16 +30,18 @@ def snapshot(manual, seed=0):
         units += [i for i in roster if traits[i][0] == cls and i not in units][:2]
         n = rnd.randint(200, 5000)
         comps.append({"units": units, "count": n, "place": round(rnd.uniform(3, 6), 3), "top4": n // 2, "win": n // 8,
-                      "spatItems": [], "extraTraits": [], "group": o % 4})
+                      "spatItems": [items[o % len(items)]] if o % 3 == 0 else [], "extraTraits": [], "group": o % 4})
     parts = ["Part%d" % k for k in range(10)]
     return {
         "meta": {"set": s, "set_marker": "TFT_Set%d" % s, "patch": 0, "patch_label": "0.0z", "rank_label": "测试分段",
                  "tactics_set": s, "aperture": {}, "total": 1_000_000, "last_updated": "2026-01-01T00:00:00Z",
                  "fetched_at": "2026-01-01T00:00:00Z", "cdragon": {"latest_version": "16.21.0+fixture", "folder": "16.21"}, "sources": {}},
-        "official": {"units": {i: {"name": name[i], "cost": 1 + j % 5, "traits": [trait_names[t] for t in traits[i]]} for j, i in enumerate(ids)},
+        "official": {"units": dict({i: {"name": name[i], "cost": 1 + j % 5, "traits": [trait_names[t] for t in traits[i]]} for j, i in enumerate(ids)},
+                                   **{"TFT_FixtureMonster": {"name": "测试野怪", "cost": 1, "traits": []}}),  # 非商店单位：开局羁绊推导要忽略它
                      "traits": trait_names,
                      "trait_meta": {t: {"breaks": [2, 4, 6], "icon": ICONS + "trait%d.png" % k} for k, t in enumerate(trait_names)}},
         "comp_groups": comp_groups(comps, traits, items, rnd, s),
+        "opgg_decks": opgg_decks(manual, roster, traits, items, s, {i: 1 + j % 5 for j, i in enumerate(ids)}),
         "unit_stats": {i: stats(rnd.randint(1000, 50000)) for i in ids},
         "champions": [{"character_record": {"character_id": i, "display_name": name[i],
                                             "squareIconPath": "/lol-game-data/assets/ASSETS/Characters/Fixture/%s.png" % i,
@@ -95,6 +97,49 @@ def comp_groups(comps, traits, items, rnd, set_no):
                     "unitItemCounts": {"%s-%d" % (u, k): [n // 4, 4.4] for u in carries for k in range(4)},
                     "traits": trs, "unitItems": unit_items, "unitItemPairs": pairs})
     return out
+
+
+def opgg_decks(manual, roster, traits, items, set_no, costs):
+    """变阵路线页的 OP.GG 官方接口数据（checks.OPGG_* 白名单的字段）：三套阵容。A、B 共用同一个 5级开局和
+    7级中期（同 deckId：树在终局分叉），C 用另一个种族开局、回合计数为 0（页面显示 —）、中期混入一个战斗
+    召唤物（页面过滤、护栏放行）。开局种族选「≥2 名英雄且至少 1 个 1/2 费」的，保证羁绊页能命中。数字全部虚构。"""
+    origins = [t for t, _ in manual["origins"]]
+    by_origin = {}
+    for i in roster:
+        by_origin.setdefault(traits[i][1], []).append(i)
+    ok = [t for t in origins if len(by_origin.get(t) or []) >= 2 and any(costs[u] <= 2 for u in by_origin[t])]
+    o1, o2 = ok[0], ok[1]
+    rest = [i for i in roster if i not in by_origin[o1] and i not in by_origin[o2]]
+
+    def stage(did, fid, level, units, play, win, lose, tkey):
+        return {"deckId": did, "finalDeckId": fid, "level": level,
+                "units": [{"characterId": u, "items": [], "cell": {"x": k % 7, "y": k % 4}} for k, u in enumerate(units)],
+                "traits": [{"key": tkey, "style": 2, "numUnits": 3}], "play": play, "win": win, "lose": lose}
+
+    def deck(k, fid, zh, early, middle, final, tkey, avg, n):
+        total = 1_000_000
+        return {"id": fid, "name": {"zh_CN": zh, "en_US": "Test deck %d" % k}, "cost": 30 + k,
+                "teamCode": "02%sTFTSet%d" % ("%03x" % k * 8, set_no),
+                "units": [{"key": u, "items": [items[0], items[1]] if j == 0 else [], "tier": 3 if j == 0 else 2,
+                           "cell": {"x": j % 7, "y": j % 4}, "isCore": j < 4} for j, u in enumerate(final)],
+                "traits": [{"key": tkey, "style": 3, "numUnits": 4}],
+                "stat": {"opTier": ("OP", "S", "A")[k % 3], "opScore": 2.0 - 0.3 * k, "labelNumber": k, "representative": True,
+                         "deck": {"totalCount": total, "compsCount": n, "avgPlacement": avg, "winCount": n // 8,
+                                  "top4Count": n // 2, "winRate": 0.2, "top4Rate": 0.6, "pickRate": n / total}},
+                "early": early, "middle": middle}
+
+    e1u = by_origin[o1][:2] + rest[:3]
+    m1u = e1u + (by_origin[o1][2:4] + rest[10:12])[:2]
+    e1 = stage("e1", "fA", 5, e1u, 5000, 2800, 2000, o1)
+    m1 = stage("m1", "fA", 7, m1u, 2600, 1500, 1000, o1)
+    e2u = by_origin[o2][:2] + rest[3:6]
+    m2u = e2u + ["DA_Elderwood18_Lifeblossom"] + by_origin[o2][2:3]
+    return [
+        deck(0, "fA", "测试阵容甲", e1, m1, m1u + rest[6:7], o1, 3.2, 18000),
+        deck(1, "fB", "测试阵容乙", dict(e1, finalDeckId="fB"), dict(m1, finalDeckId="fB"), m1u + rest[7:8], o1, 4.1, 9000),
+        deck(2, "fC", "测试阵容丙", stage("e2", "fC", 5, e2u, 0, 0, 0, o2),
+             stage("m2", "fC", 7, m2u, 800, 400, 350, o2), e2u + by_origin[o2][2:3] + rest[8:10], o2, 3.8, 5000),
+    ]
 
 
 def riot_comps_doc(snap, seed=3):

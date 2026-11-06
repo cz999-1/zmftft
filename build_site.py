@@ -9,7 +9,7 @@ from pathlib import Path
 from generate_tft_table import (COST_COLORS, build_item_meta, item_cn, item_icon, item_keys, build_roster, cdragon_asset_url,
     load_manual, row_orders, NO_CLASS)
 
-import craft, synergy, comps, fetch_data, checks
+import craft, synergy, comps, trees, fetch_data, checks
 e = lambda s: H.escape(str(s))
 
 def face(u, size=""):
@@ -353,11 +353,23 @@ def render(snap, out, riot=None, riot_syn=None, riot_comps=None):
                                        crawl=riot_syn, crawl_zh=snap["official"]["traits"],
                                        crawl_label=riot_label(riot_syn) if riot_syn else "")
     bodies["synergy.html"] = syn_mat
+    bodies["trees.html"], tree_pages = trees.build_pages(snap["opgg_decks"], snap["official"], champs, manual, U, face, meta)
     tpl = TPL.replace("{{RIOT_NOTICE}}", e(RIOT_NOTICE)).replace("{{RIOT_BOILERPLATE}}", e(RIOT_BOILERPLATE))
     for k, v in (("{{SET}}", m["set"]), ("{{PATCH}}", m["patch_label"] or "tactics.tools 编号 %s" % m["patch"]),
                  ("{{SCOPE}}", ("排位 · %s" % m["rank_label"] if m["rank_label"] else "分段未注明") + " · 地区未注明"),
                  ("{{N}}", "{:,}".format(total)), ("{{DATE}}", (m["last_updated"] or m["fetched_at"]).replace("T", " ")[:16] + " UTC")):
         tpl = tpl.replace(k, e(v))
+    # 变阵路线页的数据是 OP.GG 的：头部的 分段/棋盘数/截至 徽章描述的是 tactics.tools 快照，按页换掉，
+    # 免得读者把它们当成本页路线数据的口径（来源行同理，见 SRC_TT/SRC_OPGG）
+    pills_tt = '<span class="pill">%s</span><span class="pill">%s 个棋盘</span><span class="pill">数据截至 %s</span>' % (
+        e(("排位 · %s" % m["rank_label"] if m["rank_label"] else "分段未注明") + " · 地区未注明"),
+        e("{:,}".format(total)), e((m["last_updated"] or m["fetched_at"]).replace("T", " ")[:16] + " UTC"))
+    pills_opgg = ('<span class="pill">OP.GG 官方接口 · %d 套 meta 阵容</span>'
+                  '<span class="pill" title="OP.GG 的接口不提供分段/地区与样本总量口径；各节点的回合数与场次见页内标注">'
+                  '样本与分段 OP.GG 未注明</span>') % len(snap["opgg_decks"])
+
+    def treeify(doc):
+        return doc.replace(SRC_TT, SRC_OPGG).replace(pills_tt, pills_opgg)
     # pages with item icons get the recipe tooltip; #itd is built per page so it holds exactly the items that page shows
     def finish(body):
         ids = sorted(set(re.findall(r'data-it="([^"]+)"', body)))
@@ -366,21 +378,25 @@ def render(snap, out, riot=None, riot_syn=None, riot_comps=None):
         tips = {"c": {c: [n, i] for c, n, i in snap["craft"]["components"]}, "i": item_tips(meta, snap["craft"], ids)}
         tips_json = json.dumps(tips, ensure_ascii=False, sort_keys=True, separators=(",", ":")).replace("</", "<\\/")
         return tpl.replace("{{TIPCSS}}", TIP_CSS).replace("{{ITEMTIPS}}", '<script type="application/json" id="itd">%s</script>%s' % (tips_json, TIP_JS))
-    css = craft.CSS + synergy.CSS + HERO_CSS + comps.CSS
+    css = craft.CSS + synergy.CSS + HERO_CSS + comps.CSS + trees.CSS
     out.mkdir(parents=True, exist_ok=True)
-    for sub in ("synergy", "comps"):  # 详情页目录每次清空重写：删掉的格子/阵容组不会留下旧页
+    for sub in ("synergy", "comps", "trees"):  # 详情页目录每次清空重写：删掉的格子/阵容组不会留下旧页
         (out / sub).mkdir(exist_ok=True)
         for old in (out / sub).glob("*.html"): old.unlink()
-    for fn, (t, body) in {**syn_pages, **comp_pages}.items():
-        parent = fn.split("/")[0] + ".html"  # synergy/… 属于「羁绊搭配」，comps/… 属于「阵容」
+    for fn, (t, body) in {**syn_pages, **comp_pages, **tree_pages}.items():
+        parent = fn.split("/")[0] + ".html"  # synergy/… 属于「羁绊搭配」，comps/… 属于「阵容」，trees/… 属于「变阵路线」
         nav = "".join('<a href="../%s"%s>%s</a>' % (f, ' class="cur"' if f == parent else "", tt) for f, tt, _ in PAGES)
         doc = finish(body).replace("{{CRAFTCSS}}", css).replace("{{NAV}}", nav).replace("{{TITLE}}", e(t)).replace("{{FILTERS}}", "").replace("{{SEARCH}}", "").replace("{{BODY}}", body).replace('href="index.html"', 'href="../index.html"')
+        if fn.startswith("trees/"):
+            doc = treeify(doc)
         (out / fn).write_text(doc, encoding="utf-8")
     for fn, title, _ in PAGES:
         nav = "".join('<a href="%s"%s>%s</a>' % (f, ' class="cur"' if f == fn else "", t) for f, t, _ in PAGES)
         filt = FILTERS if fn in ("class.html", "origin.html") else ""
         search = SEARCH if filt or fn == "heroes.html" else ""
         doc = finish(bodies[fn]).replace("{{CRAFTCSS}}", css).replace("{{NAV}}", nav).replace("{{TITLE}}", e(title)).replace("{{FILTERS}}", filt).replace("{{SEARCH}}", search).replace("{{BODY}}", bodies[fn])
+        if fn == "trees.html":
+            doc = treeify(doc)
         (out / fn).write_text(doc, encoding="utf-8")
         print("done →", out / fn, len(doc), "bytes")
     print(len(roster), "champions;", len(comps_), "comps;", len(comp_pages), "comp groups")
@@ -400,8 +416,14 @@ REMOVED = '''<section id="ins"><h2>说明</h2><div class="box"><p>首页的「�
 <p class="hint">它们只看对局结束时的最终棋盘：活得越久越容易凑出三星、满装、高费卡和高档羁绊，所以这些数字主要说明“这局本来就在赢”，不说明“照这样玩能赢”。阵容强度目前还无法从最终棋盘可靠测出，测出之前这里不放排行：上面的「阵容」按场次（人气）排列，是描述，不是强度排行，每组的强度评级标为「待验证」。</p>
 <p class="hint">想看原始数字：「英雄数据」页提供每个英雄的选率 / 吃鸡率 / 均名、出装与 3★ 满装所在阵容——它们是对结果的描述（逐项标注样本量与上面的偏差），不是强度结论。</p></div></section>'''
 
+# 变阵路线页的数据不是 tactics.tools：页脚来源行换成 OP.GG 官方接口（render 里按页替换）
+SRC_TT = '<p>数据来源 <a href="https://tactics.tools/zh/units" style="color:var(--ac)">tactics.tools</a> · 图标 Community Dragon</p>'
+SRC_OPGG = ('<p>本页数据来源 <a href="https://github.com/opgginc/opgg-mcp" style="color:var(--ac)">OP.GG 官方数据接口</a>'
+            '（其应用的对局内采集，非本站实测）· 图标 Community Dragon · 站点其余页面为 tactics.tools 数据</p>')
+
 PAGES = [("index.html", "首页", "阵容、说明与各页入口"),
          ("comps.html", "阵容", "主流阵容组按场次（人气）排列：羁绊、八人阵容、3★ / 成装标记与每组详情——不是强度排行"),
+         ("trees.html", "变阵路线", "每个 1/2 费开局羁绊一页：5级开局 → 7级中期 → 终局的变阵树，带回合胜率（OP.GG 官方接口）"),
          ("class.html", "职业站位", "各职业羁绊的前/中/后排英雄与常用出装"),
          ("origin.html", "种族站位", "各种族羁绊的前/中/后排英雄与常用出装"),
          ("heroes.html", "英雄数据", "全部英雄按选率 / 吃鸡率 / 均名排序，最高吃鸡率出装；悬停看星级数据与 3★ 满装所在阵容"),

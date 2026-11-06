@@ -12,6 +12,7 @@ BOUNDS = {"roster": (40, 90),          # 矩阵里的英雄数（65）
           "total": (10_000, None),     # tactics.tools 棋盘总数（1,563,397）
           "comps": (10, None),         # 主流阵容数（45）
           "comp_groups": (2, 12),      # 阵容组数（5）
+          "opgg_decks": (3, 30),       # OP.GG 官方接口的 meta 阵容数（10）
           "craft_components": (10, 10),  # 基础散件（10）
           "craft_recipes": (40, None)}   # 合成表格子（55）
 POSITIONS = {"front", "mid", "back"}
@@ -20,6 +21,19 @@ POSITIONS = {"front", "mid", "back"}
 # starUnits（目标星级随费用变，五费记的是 2★）、winCons（计数超过组内棋盘数，口径不明）。
 GROUP_FIELDS = ("group", "count", "place", "top4", "win", "code", "placementDistribution", "levels",
                 "carryUnits", "units", "unitItemCounts", "traits", "unitItems", "unitItemPairs")
+# 变阵路线页（trees.py）的数据：OP.GG 官方 MCP 接口 tft_list_meta_decks（opgg.py），同样按白名单复制。
+# 不复制：badge、priority、stat.label（和 stat.deck 同口径的组级数字，页面不用）。接口数据不含玩家字段，
+# 但照样扫（puuid/gameName/tagLine/recentWins 出现即不写快照）。
+OPGG_DECK_FIELDS = ("id", "name", "cost", "teamCode", "units", "traits", "stat", "early", "middle")
+OPGG_UNIT_FIELDS = ("key", "characterId", "items", "tier", "cell", "isCore")
+OPGG_STAGE_FIELDS = ("deckId", "finalDeckId", "level", "units", "traits", "play", "win", "lose")
+OPGG_TRAIT_FIELDS = ("key", "style", "numUnits")
+OPGG_STAT_FIELDS = ("opTier", "opScore", "labelNumber", "representative", "deck")
+OPGG_DECK_STAT_FIELDS = ("totalCount", "compsCount", "avgPlacement", "winCount", "top4Count", "winRate", "top4Rate", "pickRate")
+OPGG_NAME_LOCALES = ("zh_CN", "en_US")
+# OP.GG 把战斗中的召唤物也算进棋盘（商店里买不到，官方英雄表里没有）：页面过滤不显示，护栏按这张表放行。
+# 新赛季出现新召唤物会在这里大声报错，人工确认后再登记。
+OPGG_SUMMONS = ("DA_Elderwood18_Lifeblossom", "DA_Elderwood18_StonebarkTree")
 
 
 def _between(name, v, problems):
@@ -110,7 +124,83 @@ def check(snap, manual=None):
                     (n > 0 and not (isinstance(srow.get("place"), (int, float)) and 0 < srow["place"] <= 8)):
                 p.append("%s：starLevelData 数值出界 %s" % (u, srow))
                 break
-    # 7. 阵容页的阵容组块：分组和 comps 一致、只有白名单字段（不含玩家名）、数值在合理范围
+    # 7. 变阵路线页的 OP.GG 官方接口数据：只有白名单字段、英雄在官方表（或登记过的召唤物）、
+    #    回合计数自洽、没有玩家字段。放在 comp_groups 块之前：那个块缺节时会提前 return。
+    decks = snap.get("opgg_decks")
+    if not isinstance(decks, list):
+        p.append("快照缺 opgg_decks（变阵路线页的 OP.GG 官方接口数据）：用新版 fetch_data.py 重建快照")
+    else:
+        _between("opgg_decks", len(decks), p)
+        if len({d.get("id") for d in decks}) != len(decks):
+            p.append("opgg_decks 里有重复的阵容 id")
+        blob = json.dumps(decks, ensure_ascii=False)
+        bad_tokens = [w for w in ("puuid", "gameName", "tagLine", "recentWins") if re.search(w, blob, re.I)]
+        if bad_tokens:
+            p.append("opgg_decks 混进了玩家字段 %s（白名单漏了）" % ", ".join(bad_tokens))
+        allowed_units = set(off_units) | set(OPGG_SUMMONS)
+        for d in decks:
+            did = (d.get("name") or {}).get("zh_CN") or d.get("id")
+            extra = sorted(set(d) - set(OPGG_DECK_FIELDS))
+            if extra:
+                p.append("OP.GG 阵容 %s 含白名单外的字段 %s" % (did, ", ".join(extra))); continue
+            if not (d.get("name") or {}).get("zh_CN"):
+                p.append("OP.GG 阵容 %s：没有 zh_CN 名字" % d.get("id"))
+            st = (d.get("stat") or {}).get("deck") or {}
+            n = st.get("compsCount")
+            if not isinstance(n, int) or n <= 0 or (isinstance(st.get("totalCount"), int) and n > st["totalCount"]):
+                p.append("OP.GG 阵容 %s：场次不合理 %r" % (did, n)); continue
+            if not (isinstance(st.get("avgPlacement"), (int, float)) and 1 <= st["avgPlacement"] <= 8) or \
+                    any(not (isinstance(st.get(k), (int, float)) and 0 <= st[k] <= 1) for k in ("winRate", "top4Rate", "pickRate")):
+                p.append("OP.GG 阵容 %s：avgPlacement/winRate/top4Rate/pickRate 缺失或出界" % did)
+            code = d.get("teamCode") or ""
+            if not code.endswith("TFTSet%d" % set_no):
+                p.append("OP.GG 阵容 %s：阵容码 %r 不是 Set %d 的" % (did, code, set_no))
+            stages = [("终局", {"units": d.get("units") or [], "level": 8, "play": 1, "win": 0, "lose": 0})] + \
+                     [(k, d.get(k)) for k in ("early", "middle")]
+            for sname, s in stages:
+                if not isinstance(s, dict):
+                    p.append("OP.GG 阵容 %s：缺 %s 阶段" % (did, sname)); continue
+                if sname != "终局":
+                    extra = sorted(set(s) - set(OPGG_STAGE_FIELDS))
+                    if extra:
+                        p.append("OP.GG 阵容 %s：%s 含白名单外的字段 %s" % (did, sname, ", ".join(extra)))
+                    if not isinstance(s.get("level"), int) or not 2 <= s["level"] <= 10:
+                        p.append("OP.GG 阵容 %s：%s 的等级 %r 不在 2-10" % (did, sname, s.get("level")))
+                    if any(not isinstance(s.get(k), int) or s[k] < 0 for k in ("play", "win", "lose")) or \
+                            s["win"] + s["lose"] > s["play"]:
+                        p.append("OP.GG 阵容 %s：%s 的回合计数不自洽（play=%r win=%r lose=%r）" % (
+                            did, sname, s.get("play"), s.get("win"), s.get("lose")))
+                us = s.get("units") or []
+                if not 1 <= len(us) <= 10:
+                    p.append("OP.GG 阵容 %s：%s 的英雄数 %d 不在 1-10" % (did, sname, len(us)))
+                for u in us:
+                    uid = u.get("key") or u.get("characterId")
+                    extra = sorted(set(u) - set(OPGG_UNIT_FIELDS) - {"cell"})
+                    if extra:
+                        p.append("OP.GG 阵容 %s：英雄行含白名单外的字段 %s" % (did, ", ".join(extra))); break
+                    if uid not in allowed_units:
+                        p.append("OP.GG 阵容 %s：英雄 %s 不在官方表里（新召唤物？先在 checks.OPGG_SUMMONS 登记）" % (did, uid)); break
+                    tier = u.get("tier")
+                    if tier is not None and tier not in (1, 2, 3, 4):
+                        p.append("OP.GG 阵容 %s：英雄 %s 星级 %r 出界" % (did, uid, tier)); break
+                for t in s.get("traits") or []:
+                    if t.get("key") not in off_traits:
+                        p.append("OP.GG 阵容 %s：羁绊 %s 不在官方表里" % (did, t.get("key"))); break
+            for t in d.get("traits") or []:  # 终局行的羁绊标签也要在官方表里
+                if t.get("key") not in off_traits:
+                    p.append("OP.GG 阵容 %s：终局羁绊 %s 不在官方表里" % (did, t.get("key"))); break
+        # 树的分叉节点直接取第一套的 board 和回合计数：同一 deckId 的阶段必须完全一致，不一致说明口径变了
+        for which in ("early", "middle"):
+            seen_stage = {}
+            for d in decks:
+                st = d.get(which) or {}
+                key = st.get("deckId")
+                body = json.dumps({k: st.get(k) for k in ("level", "units", "traits", "play", "win", "lose")},
+                                  ensure_ascii=False, sort_keys=True)
+                if key in seen_stage and seen_stage[key] != body:
+                    p.append("OP.GG 两套阵容共用 %s 的 deckId %s 但阶段内容不同（接口口径变了？）" % (which, key)); break
+                seen_stage[key] = body
+    # 8. 阵容页的阵容组块：分组和 comps 一致、只有白名单字段（不含玩家名）、数值在合理范围
     groups = snap.get("comp_groups")
     if not isinstance(groups, list):
         p.append("快照缺 comp_groups（阵容页的阵容组块）：用新版 fetch_data.py 重建快照")

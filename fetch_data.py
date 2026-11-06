@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from generate_tft_table import (fetch, fetch_json, fetch_next_data, load_unit_builds, detect_set_filter, set_number,
     official_units, official_traits, item_keys, TACTICS, CDRAGON, CD_ROOT)
-import craft, checks
+import craft, checks, opgg
 
 ROOT = Path(__file__).resolve().parent
 RAW = ROOT / "cache" / "raw"
@@ -91,7 +91,8 @@ def collect_raw(refresh=False, offline=False):
     raw["champs"] = get("cd_champions", lambda: fetch_json(CDRAGON + "/zh_cn/v1/tftchampions.json"))
     raw["items"] = get("cd_items", lambda: fetch_json(CDRAGON + "/zh_cn/v1/tftitems.json"))
     raw["cd_tft"] = get("cd_tft", craft.fetch)
-    names = ("tt_units_page", "tt_unit_builds", "tt_comps", "cd_meta", "cd_champions", "cd_items", "cd_tft")
+    raw["opgg"] = get("opgg_meta_decks", opgg.fetch_meta_decks)  # 官方 MCP 接口，一次请求（opgg.py 顶部说明）
+    names = ("tt_units_page", "tt_unit_builds", "tt_comps", "cd_meta", "cd_champions", "cd_items", "cd_tft", "opgg_meta_decks")
     raw["fetched_at"] = min((RAW / (n + ".json")).stat().st_mtime for n in names)
     return raw
 
@@ -120,8 +121,10 @@ def make_snapshot(raw):
         for v in gr.values():
             if isinstance(v, dict): comps += [dict(c, group=g) for c in v.get("comps") or []]
     groups = comp_groups(raw["groups"])
-    # 阵容页显示的装备（含纹章、光明装备、神器）也要在装备表里，才有名字和图标
+    opgg_decks = opgg.extract_decks(raw["opgg"])
+    # 阵容页显示的装备（含纹章、光明装备、神器）也要在装备表里，才有名字和图标；变阵路线页的装备同理
     used |= {r["itemId"] for g in groups for r in g["unitItems"]} | {i for g in groups for r in g["unitItemPairs"] for i in r["items"]}
+    used |= {i for d in opgg_decks for part in ([d] + [d["early"], d["middle"]]) for u in part["units"] for i in u.get("items") or []}
     used = {k for i in used for k in (i, i.replace("DA_", ""), i.replace("DA_", "").replace("Artifact_", ""))}
     folder = cd_folder(raw["cd_meta"].get("version"))
     components, table = craft.build(raw["cd_tft"], set_no, folder)
@@ -134,7 +137,8 @@ def make_snapshot(raw):
                              "note": "data read from latest; image URLs use this patch folder"},
                  "sources": {"tactics.tools": [TACTICS + "/zh/units", TACTICS + "/zh/units/<id>", TACTICS + "/zh/team-compositions"],
                              "community_dragon": [CD_ROOT + "/latest/content-metadata.json", CDRAGON + "/zh_cn/v1/tftchampions.json",
-                                                  CDRAGON + "/zh_cn/v1/tftitems.json", craft.CD_JSON]}},
+                                                  CDRAGON + "/zh_cn/v1/tftitems.json", craft.CD_JSON],
+                             "op.gg": [opgg.MCP_URL + " (官方 MCP 接口 tools/call tft_list_meta_decks；网站条款禁止抓取页面，本站不抓)"]}},
         "official": {"units": official_units(raw["cd_tft"], set_no), "traits": official_traits(raw["cd_tft"], set_no),
                      "trait_meta": official_trait_meta(raw["cd_tft"], set_no, folder)},
         # 职业/种族页的卡只显示 选率（owner, 2026-11-01）；place/top4/won 只给英雄页用（owner, 2026-11-01 heroes 页决定）
@@ -144,6 +148,7 @@ def make_snapshot(raw):
         "unit_builds": builds,
         "comps": comps,
         "comp_groups": groups,  # 阵容页：每组一块（白名单字段，见 checks.GROUP_FIELDS）
+        "opgg_decks": opgg_decks,  # 变阵路线页：OP.GG 官方接口的 meta 阵容（白名单字段，见 checks.OPGG_*）
         "craft": {"components": components, "recipes": [dict(v, pair=list(k)) for k, v in sorted(table.items())]},  # sorted: craft.build loops over a set
     }
 

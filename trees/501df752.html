@@ -1,0 +1,204 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>重装战士 开局 · 变阵路线 · 云顶攻略台 zmftft</title><style>
+:root{--bg:#0e1116;--pn:#161b22;--pn2:#1c232d;--bd:#2a323d;--tx:#e6edf3;--mu:#8b98a8;--ac:#f0b429;--good:#3fb950;--bad:#e5737a;--r:12px}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 -apple-system,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif}
+.wrap{max-width:1200px;margin:0 auto;padding:0 20px}
+nav{position:sticky;top:0;z-index:9;background:rgba(14,17,22,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--bd)}
+nav .wrap{display:flex;gap:16px;align-items:center;height:56px}nav .lg{font-weight:800;color:var(--ac);white-space:nowrap}
+nav a{color:var(--mu);text-decoration:none;white-space:nowrap}nav a:hover,nav a.cur{color:var(--tx)}nav a.cur{border-bottom:2px solid var(--ac)}a.golink{text-decoration:none;color:var(--tx)}a.golink:hover{border-color:var(--ac)}
+nav input{margin-left:auto;background:var(--pn2);border:1px solid var(--bd);color:var(--tx);border-radius:8px;padding:7px 12px;width:220px}
+.filters{display:flex;flex-wrap:wrap;gap:12px 20px;margin:16px 0 4px;padding:12px;background:var(--pn);border:1px solid var(--bd);border-radius:var(--r)}
+.fg{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.fl{color:var(--mu);font-size:12px;margin-right:4px}
+.fb{background:var(--pn2);border:1px solid var(--bd);color:var(--mu);border-radius:99px;padding:4px 12px;cursor:pointer;font-size:12px}
+.fb:hover{color:var(--tx)}.fb.on{background:var(--ac);border-color:var(--ac);color:#111;font-weight:700}
+
+header{padding:40px 0 10px}header h1{margin:0;font-size:32px}header p{color:var(--mu);margin:6px 0}
+.pill{display:inline-block;background:var(--pn2);border:1px solid var(--bd);border-radius:99px;padding:2px 10px;margin-right:6px;font-size:12px}
+section{margin:36px 0}h2{font-size:22px;border-left:4px solid var(--ac);padding-left:10px;margin:0 0 16px}h3{font-size:16px;margin:18px 0 10px}h3 small,.hint{color:var(--mu);font-weight:400;font-size:12px;margin:0 0 8px}
+.grid{display:grid;gap:14px}.three{grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:18px}
+.box{background:var(--pn);border:1px solid var(--bd);border-radius:var(--r);padding:14px}
+.sub{color:var(--mu);font-size:12px;margin-top:6px}
+.av{display:inline-block;width:38px;height:38px;border-radius:8px;border:2px solid var(--c);overflow:hidden;background:#000}.av img{width:100%;height:100%;object-fit:cover}.av.sm{width:30px;height:30px}
+.legend{color:var(--mu);font-size:12px;margin:-6px 0 14px}
+.trow{display:grid;grid-template-columns:120px 1fr 1fr 1fr;gap:10px;background:var(--pn);border:1px solid var(--bd);border-radius:var(--r);padding:12px;margin-bottom:10px}
+.tn{font-weight:700;font-size:16px}.tn small{display:block;color:var(--mu);font-weight:400;font-size:12px}
+.col{background:var(--pn2);border-radius:8px;padding:8px}.cl{font-size:11px;color:var(--mu);margin-bottom:6px}
+.cards{display:flex;flex-wrap:wrap;gap:8px}.emp{color:var(--mu)}
+.ch{width:124px;background:var(--bg);border:1px solid var(--bd);border-top:3px solid var(--c);border-radius:10px;padding:6px;font-size:11px}
+.ph{position:relative}.ph img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;display:block}
+.ph em{position:absolute;top:4px;left:4px;background:var(--c);color:#000;font-style:normal;font-weight:800;border-radius:4px;padding:0 5px}
+.nm{font-weight:700;font-size:13px;margin-top:4px}.tg i{font-style:normal;display:inline-block;background:var(--pn2);color:var(--mu);border-radius:4px;padding:0 4px;margin:2px 2px 0 0}
+.st{color:var(--mu);margin:4px 0}.st span{font-weight:700}
+.bd{display:flex;align-items:center;gap:2px;margin-top:3px}.bd b{color:var(--ac);width:14px}.bd img{width:22px;height:22px;border-radius:3px}.bd span{margin-left:auto;color:var(--tx)}.bd.none{color:var(--mu)}
+footer{color:var(--mu);border-top:1px solid var(--bd);padding:24px 0 60px;font-size:12px}code{background:var(--pn2);padding:1px 6px;border-radius:4px}
+.hide{display:none!important}
+.cw{overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r);background:var(--pn)}
+.craft{border-collapse:collapse;min-width:1100px;font-size:11px}.craft th,.craft td{border:1px solid var(--bd);padding:4px;vertical-align:top;text-align:center;width:9%}
+.craft th{background:var(--pn2);color:var(--ac)}.craft th img{width:30px;height:30px;display:block;margin:0 auto 2px;border-radius:4px}
+.craft td img{width:34px;height:34px;border-radius:4px;display:block;margin:0 auto}.craft td b{display:block;font-size:12px;margin:2px 0}
+.craft td small{color:var(--mu);display:block;line-height:1.3}.craft td.em{background:rgba(240,180,41,.08)}.craft td.na{color:var(--mu)}
+.craft td:hover{background:var(--pn2)}.emb{list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.emb li{display:flex;align-items:center;gap:6px;background:var(--pn);border:1px solid var(--bd);border-radius:8px;padding:6px}
+.emb li>img{width:32px;height:32px}.emb .rc img{width:18px;height:18px;opacity:.8}.emb small{color:var(--mu);margin-left:auto}.smx{overflow:auto}table.syn{border-collapse:collapse;font-size:12px}.syn td,.syn th{border:1px solid var(--bd);text-align:center;min-width:44px;height:40px;padding:0}
+.syn .vh{height:110px;vertical-align:bottom}.syn .vh span{writing-mode:vertical-rl;padding:4px}.syn .rh{text-align:right;padding:0 6px;white-space:nowrap;position:sticky;left:0;background:var(--pn)}
+.syn td a{display:block;color:inherit;text-decoration:none;padding:3px}.syn td a:hover{background:var(--pn2)}.syn small{display:block;color:var(--mu);font-size:10px}
+.syn td .cv{display:block;padding:3px;cursor:help}
+.syn .dg{background:#222a35}.syn .na{color:#444}
+#synx b.mw,#synx b.ml{display:none}#synx.m-win b.mp{display:none}#synx.m-win b.mw{display:inline}
+#synx.m-lift b.mp{display:none}#synx.m-lift b.ml{display:inline}
+.syn td.sg a b{color:var(--mu)}.hint .sgl{color:var(--mu)}.syn td.thin a,.syn td.thin .cv{opacity:.55}
+.syn .s5{color:#d9a24d}.hint .s5l{color:#d9a24d}.syn td.s5c{background:rgba(217,162,77,.08)}.syn td.s5c a b,.syn td.s5c .cv b{color:#d9a24d}
+.syn td.s5c.sg a b{color:var(--mu)}
+table.vt{border-collapse:collapse;width:100%}.vt td,.vt th{border-bottom:1px solid var(--bd);padding:6px;text-align:center}.vt .us{text-align:left}
+.hrow{display:grid;grid-template-columns:30px 48px minmax(110px,1fr) auto minmax(230px,1.1fr);gap:10px;align-items:center;background:var(--pn);border:1px solid var(--bd);border-radius:var(--r);padding:8px 12px;margin-bottom:8px}
+.hrk{color:var(--mu);font-size:12px;text-align:right}
+.hface{position:relative;width:44px;height:44px;cursor:help}.hface>.av{width:44px;height:44px}
+.hp{display:none;position:absolute;left:52px;top:-6px;z-index:25;width:370px;max-width:82vw;background:var(--pn2);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.55);font-size:12px;font-weight:400;cursor:auto}
+.hface:hover .hp,.hface.open .hp{display:block}
+.hp-t{font-weight:700;font-size:14px}
+.hp-s{margin-top:8px;border-top:1px solid var(--bd);padding-top:6px;font-weight:700}.hp-s small{color:var(--mu);font-weight:400}
+.hp-s table{width:100%;border-collapse:collapse;font-weight:400;margin-top:4px}.hp-s td{padding:1px 6px 1px 0;color:var(--mu);white-space:nowrap}
+.hpc{font-weight:400;margin:6px 0;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px}
+.hpc .fcs{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px}
+.hpc .cst{color:var(--mu)}.hpc .cst b{color:var(--tx)}
+.hp .hint,.hp .emp3{font-weight:400;color:var(--mu);margin:6px 0 0;font-size:12px}
+.hst{display:flex;gap:14px;align-items:baseline;white-space:nowrap}.hst span{color:var(--mu);font-size:12px}.hst b{color:var(--tx);font-size:14px}.hst small{color:var(--mu)}
+.hbd .bd{margin-top:2px}.hbd .bd b{width:auto;min-width:24px}
+@media(max-width:900px){.hrow{grid-template-columns:24px 44px 1fr}.hst{grid-column:2/4;flex-wrap:wrap;gap:8px 14px}.hbd{grid-column:2/4}
+.hp{position:fixed;left:12px;right:12px;top:14%;width:auto;max-width:none}}
+.clist{display:grid;gap:14px}
+.cc{background:var(--pn);border:1px solid var(--bd);border-radius:var(--r);padding:14px 16px}
+.ch1{display:flex;flex-wrap:wrap;align-items:center;gap:10px}.ch1 h3{margin:0;font-size:18px}
+.tierp{font-size:12px;color:var(--mu);border:1px dashed var(--bd);border-radius:99px;padding:1px 10px}.cmeta{color:var(--mu);font-size:12px}
+.crow{display:flex;flex-wrap:wrap;gap:12px 28px;align-items:flex-start;margin-top:10px}
+.cstats{display:flex;flex-wrap:wrap;gap:6px 20px}.sb{display:flex;flex-direction:column;min-width:66px}
+.sb span{color:var(--mu);font-size:12px}.sb b{font-size:18px}.sb b small{font-size:11px;font-weight:400;color:var(--mu)}.sb>small{color:var(--mu);font-size:11px}
+.tcs{display:flex;flex-wrap:wrap;gap:6px;max-width:560px}
+.tc{display:inline-flex;align-items:center;gap:4px;background:var(--pn2);border:1px solid var(--bd);border-radius:99px;padding:2px 10px 2px 3px;font-size:12px}
+.tc img,.tri{width:20px;height:20px;background:#000;border-radius:50%;padding:2px}.tc b{color:var(--ac)}
+.cstrip{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}.cu{width:64px;text-align:center}
+.cs{height:16px;font-size:13px;line-height:16px;letter-spacing:-1px;color:transparent}.cs.maj{color:#f0b429}.cs.min{color:#8b98a8}
+.cp{position:relative;width:60px;height:60px;margin:0 auto;border:2px solid var(--c);border-radius:10px;overflow:hidden;background:#000}
+.cp>img{width:100%;height:100%;object-fit:cover;display:block}
+.ck{position:absolute;top:0;left:0;font-style:normal;font-size:10px;font-weight:800;padding:0 4px;border-bottom-right-radius:6px;color:#fff;background:#d6336c;cursor:help}
+.ck.r2{background:#1c7ed6}.ck.r3{background:#e8590c}
+.ci{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:1px;background:rgba(0,0,0,.6)}.ci img{width:18px;height:18px;border-radius:3px}
+.cn{font-size:11px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci img,.it img,.pr img,.vt td img[data-it]{cursor:help}
+.cgo{display:inline-block;margin-top:12px;color:#111;background:var(--ac);border-radius:8px;padding:5px 14px;font-weight:700;text-decoration:none}
+.ctabs{display:flex;flex-wrap:wrap;gap:4px;margin:10px 0 14px;padding:6px;background:var(--pn);border:1px solid var(--bd);border-radius:var(--r)}
+.ctabs a{color:var(--mu);text-decoration:none;padding:4px 12px;border-radius:8px}.ctabs a:hover{color:var(--tx);background:var(--pn2)}
+.pbx{max-width:520px;margin:18px 0 6px}.pba{position:relative;height:96px;display:flex;align-items:flex-end;gap:6px;border-bottom:1px solid var(--bd)}
+.pbv{flex:1;background:#3b4a5e;border-radius:4px 4px 0 0;position:relative;min-height:2px}.pbv.g{background:#2f7d4a}
+.pbv small{position:absolute;top:-16px;left:0;right:0;text-align:center;font-size:10px;color:var(--mu)}
+.pbl{position:absolute;left:0;right:0;border-top:1px dashed var(--ac);opacity:.7}
+.pbn{display:flex;gap:6px}.pbn span{flex:1;text-align:center;font-size:11px;color:var(--mu)}
+.utab .us{white-space:nowrap}.utab .us span{vertical-align:middle;margin-left:4px}.utab td small{color:var(--mu)}
+.spx{display:inline-flex;gap:2px;vertical-align:middle;margin-left:4px}.spx img{width:22px;height:22px;border-radius:3px}
+.sbar{display:inline-flex;width:90px;height:8px;border-radius:4px;overflow:hidden;background:var(--pn2);vertical-align:middle}.sbar i{display:block}
+.sbar .s1{background:#6c757d}.sbar .s2{background:#4dabf7}.sbar .s3{background:#f0b429}
+.its{white-space:nowrap}.it{display:inline-flex;flex-direction:column;align-items:center;margin-right:4px}.it img{width:24px;height:24px;border-radius:4px}.it small{font-size:10px;color:var(--mu)}
+.it.thin,.pr.thin{opacity:.5}
+.pr{display:flex;align-items:center;gap:2px;white-space:nowrap;margin:2px 0}.pr img{width:22px;height:22px;border-radius:3px}.pr small{color:var(--mu);margin-left:4px}
+.prow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0}.prow>b{width:44px;color:var(--mu);font-weight:400;font-size:12px}
+.whyn{background:var(--pn);border:1px dashed var(--bd);border-radius:var(--r);padding:12px 14px;opacity:.85}.whyn h3{margin-top:0}
+.tcode{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--mu)}.tcode code{color:var(--tx);word-break:break-all}
+.vt td a{color:var(--ac);text-decoration:none}.vt td a:hover{text-decoration:underline}.vt tr.thin td{opacity:.55}.vt th small{font-weight:400;color:var(--mu)}
+.cdet [id],section[id]{scroll-margin-top:72px}
+.trl{display:flex;flex-wrap:wrap;gap:8px 20px}.trl div{font-size:12px;color:var(--mu);display:flex;align-items:center;gap:4px}.trl b{color:var(--tx)}.trl .on{color:var(--ac);font-weight:700}.vt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.vt-card{display:block;background:var(--pn);border:1px solid var(--bd);border-radius:var(--r);padding:12px;color:var(--tx);text-decoration:none}
+.vt-card img{width:26px;height:26px;background:#000;border-radius:50%;padding:2px;float:right}
+.vt-card b{font-size:15px}.vt-card small{display:block;color:var(--mu);margin:2px 0 8px}
+a.vt-card:hover{border-color:var(--ac)}.vt-card.vt-none{opacity:.55}
+.vt-cheap{display:flex;flex-wrap:wrap;gap:4px}
+.vt-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0}
+.vt-head img{width:34px;height:34px;background:#000;border-radius:50%;padding:3px}.vt-head h2{margin:0}
+.vt-tree{background:var(--pn);border:1px solid var(--bd);border-radius:var(--r);padding:14px;margin:14px 0}
+.vt-kids{margin:10px 0 0 14px;padding-left:14px;border-left:2px solid var(--bd)}
+.vt-mid{margin:12px 0}
+.vt-stage,.vt-leaf{background:var(--pn2);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin:8px 0}
+.vt-leaf{border-left:3px solid var(--ac)}
+.vt-sh{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:8px}
+.vt-lv{background:var(--bg);border:1px solid var(--bd);border-radius:99px;padding:1px 10px;font-size:12px;color:var(--mu)}
+.vt-nm{font-size:15px}
+.vt-wr{font-size:12px;color:var(--mu);cursor:help}.vt-wr b{color:var(--tx);font-size:14px}.vt-wr small{margin-left:4px}
+.vt-n{font-size:12px;color:var(--mu)}
+.vt-tier{font-size:12px;color:var(--mu);border:1px dashed var(--bd);border-radius:99px;padding:1px 10px;cursor:help}
+.vt-board{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
+.vt-u{position:relative;display:inline-flex;flex-direction:column;align-items:center;gap:2px;padding:2px;border-radius:8px}
+.vt-u.vt-nu{outline:2px solid var(--ac);outline-offset:0}
+.vt-s3{position:absolute;top:-6px;right:-4px;font-style:normal;font-size:10px;font-weight:800;color:#111;background:var(--ac);border-radius:4px;padding:0 3px;cursor:help}
+.vt-it{display:flex;gap:1px}.vt-it img{width:16px;height:16px;border-radius:3px;cursor:help}
+.vt-diff{font-size:12px;color:var(--tx);margin-top:6px}.vt-diff .vt-cut{color:var(--mu)}
+.vt-tr{font-size:12px;color:var(--mu);margin-top:4px}.vt-tr b{color:var(--ac)}
+.vt-st4{font-size:12px;color:var(--mu);margin-top:8px;cursor:help}.vt-st4 b{color:var(--tx)}
+@media(max-width:800px){.vt-kids{margin-left:4px;padding-left:8px}}.bd img[data-it]{cursor:help}
+.tip{position:fixed;z-index:30;display:none;max-width:260px;background:var(--pn);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.55);font-size:12px;line-height:1.5;pointer-events:none}
+.tip .tt{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700}.tip .tt img{width:32px;height:32px;border-radius:6px}
+.tip .rc{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-top:8px}.tip .rc img{width:22px;height:22px;border-radius:4px}.tip .rc i{font-style:normal;color:var(--mu);margin:0 2px}
+.tip p{margin:6px 0 0;color:var(--mu)}
+@media(max-width:800px){nav .wrap{flex-wrap:wrap;height:auto;padding:8px 12px}nav input{width:100%;margin:0}.trow{grid-template-columns:1fr}.filters{padding:10px}}
+</style></head><body>
+<nav><div class="wrap"><a class="lg" href="../index.html">zmftft</a><a href="../index.html">首页</a><a href="../comps.html">阵容</a><a href="../trees.html" class="cur">变阵路线</a><a href="../class.html">职业站位</a><a href="../origin.html">种族站位</a><a href="../heroes.html">英雄数据</a><a href="../synergy.html">羁绊搭配</a><a href="../craft.html">装备合成</a></div></nav>
+<div class="wrap"><header><h1>重装战士 开局 · 变阵路线</h1><p><span class="pill">Set 18 · 版本 18.6</span><span class="pill">OP.GG 官方接口 · 10 套 meta 阵容</span><span class="pill" title="OP.GG 的接口不提供分段/地区与样本总量口径；各节点的回合数与场次见页内标注">样本与分段 OP.GG 未注明</span></p>
+<p>本页数据来源 <a href="https://github.com/opgginc/opgg-mcp" style="color:var(--ac)">OP.GG 官方数据接口</a>（其应用的对局内采集，非本站实测）· 图标 Community Dragon · 站点其余页面为 tactics.tools 数据</p>
+
+</header>
+<section class="vt-det"><p><a href="../trees.html" style="color:var(--ac)">← 返回变阵路线</a></p><div class="vt-head"><img src="https://raw.communitydragon.org/16.22/game/assets/ux/traiticons/trait_icon_18_vanguard.png" alt="" loading="lazy" onerror="this.remove()"><h2>重装战士 开局 · 变阵树</h2><span class="cmeta">职业 · 1/2 费：洛、伊莉丝</span></div><div class="box"><p>数据来自 <b>OP.GG 官方数据接口</b>（op.gg 提供给 AI 代理的 MCP 接口，本站用它替代被条款禁止的网页抓取），当前提供 <b>10 套 meta 阵容</b>的三阶段路线：<b>5级开局 → 7级中期 → 终局</b>。评级 C（描述性）。</p><p class="hint">回合胜率 = 该阶段 board 的战斗回合胜负计数（win/play，余下为平局等；OP.GG 按阶段 board 计数，分叉节点的计数为走到下方任一终局的对局共用），样本是<b>最终成型为下方终局</b>的对局：这是按终局回看的路线统计，活到后期的对局才会被计入——含幸存者偏差，描述“成型者当时拿了什么”，不是“照这样拿能赢”的建议。终局行按 OP.GG 均名从好到差排序（<b>OP.GG 数据，非本站评级</b>；均名均匀基线 4.50 · 前四 50% · 吃鸡 12.5%（每局 8 人，按定义如此））。「OP.GG 评级」为其自家 OP/S/A 分级，本站的强度评级仍为「待验证」。亮框 = 相比上一阶段新增的英雄；覆盖不到的开局羁绊标「暂无路线」，会随 OP.GG 数据更新。</p></div><p class="hint">树根 = 开局棋盘（该羁绊 ≥ 2 名英雄）；分叉 = 同一开局在 OP.GG 数据里演变出的不同中期/终局。拿牌/换下 = 相邻阶段的差异。</p><div class="vt-tree"><div class="vt-stage"><div class="vt-sh"><span class="vt-lv">等级5 · 开局</span><span class="vt-wr" title="该阶段 board 的战斗回合胜率 = 胜 329 / 共 795 回合（OP.GG 按阶段 board 计数，win+lose 可小于 play，余下为平局等；分叉节点的计数为走到下方任一终局的对局共用）。回看式统计，含幸存者偏差，不是拿牌建议">回合胜率 <b>41%</b><small>795 回合</small></span><span class="vt-n">1 条路线</span></div><div class="vt-board"><span class="vt-u"><span class="av sm" style="--c:#9aa4af" title="卡蜜尔"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_camille/tft18_camille_square.tft_set18.png" alt="卡蜜尔" loading="lazy" onerror="this.style.opacity=.2"></span></span><span class="vt-u"><span class="av sm" style="--c:#11b288" title="伊莉丝"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_elise/tft18_elise_square.tft_set18.png" alt="伊莉丝" loading="lazy" onerror="this.style.opacity=.2"></span></span><span class="vt-u"><span class="av sm" style="--c:#11b288" title="凯特琳"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_caitlyn/tft18_caitlyn_square.tft_set18.png" alt="凯特琳" loading="lazy" onerror="this.style.opacity=.2"></span></span><span class="vt-u"><span class="av sm" style="--c:#207ac7" title="卡西奥佩娅"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_cassiopeia/tft18_cassiopeia_square.tft_set18.png" alt="卡西奥佩娅" loading="lazy" onerror="this.style.opacity=.2"></span></span><span class="vt-u"><span class="av sm" style="--c:#207ac7" title="黛安娜"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_diana/tft18_diana_square.tft_set18.png" alt="黛安娜" loading="lazy" onerror="this.style.opacity=.2"></span></span></div><div class="vt-tr">魔女 <b>4</b> · 狂战士 <b>2</b> · 重装战士 <b>2</b></div></div><div class="vt-kids"><div class="vt-mid"><div class="vt-stage"><div class="vt-sh"><span class="vt-lv">等级7 · 中期</span><span class="vt-wr" title="该阶段 board 的战斗回合胜率 = 胜 162 / 共 431 回合（OP.GG 按阶段 board 计数，win+lose 可小于 play，余下为平局等；分叉节点的计数为走到下方任一终局的对局共用）。回看式统计，含幸存者偏差，不是拿牌建议">回合胜率 <b>38%</b><small>431 回合</small></span></div><div class="vt-board"><span class="vt-u"><span class="av sm" style="--c:#9aa4af" title="卡蜜尔"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_camille/tft18_camille_square.tft_set18.png" alt="卡蜜尔" loading="lazy" onerror="this.style.opacity=.2"></span></span><span class="vt-u"><span class="av sm" style="--c:#11b288" title="伊莉丝"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_elise/tft18_elise_square.tft_set18.png" alt="伊莉丝" loading="lazy" onerror="this.style.opacity=.2"></span></span><span class="vt-u"><span class="av sm" style="--c:#11b288" title="凯特琳"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_caitlyn/tft18_caitlyn_square.tft_set18.png" alt="凯特琳" loading="lazy" onerror="this.style.opacity=.2"></span></span><span class="vt-u"><span class="av sm" style="--c:#207ac7" title="卡西奥佩娅"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_cassiopeia/tft18_cassiopeia_square.tft_set18.png" alt="卡西奥佩娅" loading="lazy" onerror="this.style.opacity=.2"></span></span><span class="vt-u vt-nu"><span class="av sm" style="--c:#207ac7" title="赫卡里姆"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_hecarim/tft18_hecarim_square.tft_set18.png" alt="赫卡里姆" loading="lazy" onerror="this.style.opacity=.2"></span></span><span class="vt-u"><span class="av sm" style="--c:#207ac7" title="黛安娜"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_diana/tft18_diana_square.tft_set18.png" alt="黛安娜" loading="lazy" onerror="this.style.opacity=.2"></span></span><span class="vt-u vt-nu"><span class="av sm" style="--c:#c440c4" title="莫甘娜"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_morgana/tft18_morgana_square.tft_set18.png" alt="莫甘娜" loading="lazy" onerror="this.style.opacity=.2"></span></span></div><div class="vt-diff">拿牌：赫卡里姆、莫甘娜</div><div class="vt-tr">魔女 <b>5</b> · 重装战士 <b>3</b> · 狂战士 <b>2</b></div></div><div class="vt-kids"><div class="vt-leaf"><div class="vt-sh"><span class="vt-lv">终局 · 8人口</span><b class="vt-nm">重装战士 拉露恩</b><span class="vt-tier" title="这是 OP.GG 自己的评级（OP/S/A），不是本站的：本站的强度评级仍为「待验证」（见首页说明）">OP.GG 评级 S</span><button type="button" class="fb" data-copy="023fd3f63fa4184283ec3fc430000000TFTSet18" title="OP.GG 提供的阵容码">复制阵容码</button></div><div class="vt-board"><span class="vt-u"><span class="av sm" style="--c:#11b288" title="伊莉丝"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_elise/tft18_elise_square.tft_set18.png" alt="伊莉丝" loading="lazy" onerror="this.style.opacity=.2"></span></span><span class="vt-u"><span class="av sm" style="--c:#207ac7" title="卡西奥佩娅"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_cassiopeia/tft18_cassiopeia_square.tft_set18.png" alt="卡西奥佩娅" loading="lazy" onerror="this.style.opacity=.2"></span></span><span class="vt-u"><span class="av sm" style="--c:#207ac7" title="黛安娜"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_diana/tft18_diana_square.tft_set18.png" alt="黛安娜" loading="lazy" onerror="this.style.opacity=.2"></span></span><span class="vt-u vt-nu"><span class="av sm" style="--c:#c440c4" title="苍蓝雕纹魔像"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_sentinel/tft18_sentinel_square.tft_set18.png" alt="苍蓝雕纹魔像" loading="lazy" onerror="this.style.opacity=.2"></span><span class="vt-it"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/maps/tft/icons/items/hexcore/tft_item_gargoylestoneplate.png" alt="石像鬼石板甲" title="石像鬼石板甲" data-it="DA_GargoyleStoneplate" loading="lazy"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/maps/tft/icons/items/hexcore/tft_item_frozenheart.png" alt="圣盾使的誓约" title="圣盾使的誓约" data-it="DA_ProtectorsVow" loading="lazy"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/maps/tft/icons/items/hexcore/tft_item_warmogsarmor.png" alt="狂徒铠甲" title="狂徒铠甲" data-it="DA_WarmogsArmor" loading="lazy"></span></span><span class="vt-u"><span class="av sm" style="--c:#c440c4" title="莫甘娜"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_morgana/tft18_morgana_square.tft_set18.png" alt="莫甘娜" loading="lazy" onerror="this.style.opacity=.2"></span><span class="vt-it"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/maps/tft/icons/items/hexcore/tft_item_adaptivehelm.png" alt="适应性头盔" title="适应性头盔" data-it="DA_AdaptiveHelm" loading="lazy"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/maps/tft/icons/items/hexcore/tft_item_morellonomicon.png" alt="莫雷洛秘典" title="莫雷洛秘典" data-it="DA_Morellonomicon" loading="lazy"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/maps/tft/icons/items/hexcore/tft_item_voidstaff.png" alt="虚空之杖" title="虚空之杖" data-it="DA_VoidStaff" loading="lazy"></span></span><span class="vt-u vt-nu"><span class="av sm" style="--c:#ffb93b" title="塔里克"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_taric/tft18_taric_square.tft_set18.png" alt="塔里克" loading="lazy" onerror="this.style.opacity=.2"></span></span><span class="vt-u vt-nu"><span class="av sm" style="--c:#ffb93b" title="拉露恩"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_alune/tft18_alune_square.tft_set18.png" alt="拉露恩" loading="lazy" onerror="this.style.opacity=.2"></span><span class="vt-it"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/maps/tft/icons/items/hexcore/tft_item_jeweledgauntlet.png" alt="珠光护手" title="珠光护手" data-it="DA_JeweledGauntlet" loading="lazy"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/maps/tft/icons/items/hexcore/tft_item_leviathan.png" alt="纳什之牙" title="纳什之牙" data-it="DA_NashorsTooth" loading="lazy"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/maps/tft/icons/items/hexcore/tft_item_spearofshojin.png" alt="朔极之矛" title="朔极之矛" data-it="DA_SpearOfShojin" loading="lazy"></span></span><span class="vt-u vt-nu"><span class="av sm" style="--c:#ffb93b" title="远古巨龙"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/characters/tft18_elderdragon/tft18_elderdragon_square.tft_set18.png" alt="远古巨龙" loading="lazy" onerror="this.style.opacity=.2"></span><span class="vt-it"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/maps/tft/icons/items/hexcore/tft_item_infinityedge.png" alt="无尽之刃" title="无尽之刃" data-it="DA_InfinityEdge" loading="lazy"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/maps/tft/icons/items/hexcore/tft_item_lastwhisper.png" alt="最后的轻语" title="最后的轻语" data-it="DA_LastWhisper" loading="lazy"><img src="https://raw.communitydragon.org/16.22/plugins/rcp-be-lol-game-data/global/default/assets/maps/tft/icons/items/hexcore/tft_item_powergauntlet.png" alt="强袭者的链枷" title="强袭者的链枷" data-it="DA_StrikersFlail" loading="lazy"></span></span></div><div class="vt-diff">拿牌：苍蓝雕纹魔像、拉露恩、远古巨龙、塔里克 · <span class="vt-cut">换下：卡蜜尔、凯特琳、赫卡里姆</span></div><div class="vt-tr">重装战士 <b>4</b> · 魔女 <b>3</b> · 峡谷野怪 <b>3</b> · 神谕 <b>2</b></div><div class="vt-st4" title="OP.GG 的终局统计（8,361 场）· 均名均匀基线 4.50 · 前四 50% · 吃鸡 12.5%（每局 8 人，按定义如此） · 选取率 = 该阵容占 OP.GG 样本的比例（其总量口径 OP.GG 未注明）">场次 <b>8,361</b> · 均名 <b>3.06</b> · 前四 <b>75.3%</b> · 吃鸡 <b>33.2%</b> · 选取率 <b>0.7%</b></div></div></div></div></div></div></section><script>(function(){document.addEventListener('click',function(ev){var b=ev.target.closest('[data-copy]');
+if(!b||!navigator.clipboard)return;navigator.clipboard.writeText(b.dataset.copy).then(function(){b.textContent='已复制';
+setTimeout(function(){b.textContent='复制';},1500);});});})();</script>
+<footer>非官方粉丝站，数据仅供参考。<br>云顶攻略台 zmftft was created under Riot Games&#x27; &quot;Legal Jibber Jabber&quot; policy using assets owned by Riot Games.  Riot Games does not endorse or sponsor this project.<br>云顶攻略台 zmftft isn&#x27;t endorsed by Riot Games and doesn&#x27;t reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.</footer></div>
+<script>
+(function(){
+  var state={q:'',cost:'',pos:'',sec:''};
+  var q=document.getElementById('q'); if(!q) return;
+  function apply(){
+    document.querySelectorAll('.ch').forEach(function(c){
+      var ok=true;
+      if(state.q && c.dataset.k.indexOf(state.q)<0) ok=false;
+      if(state.cost && String(c.dataset.cost)!==state.cost) ok=false;
+      if(state.pos && c.dataset.pos!==state.pos) ok=false;
+      c.classList.toggle('hide', !ok);
+    });
+    document.querySelectorAll('.trow').forEach(function(r){
+      var has=!!r.querySelector('.ch:not(.hide)');
+      var nameHit=!state.q || r.querySelector('.tn').textContent.indexOf(state.q)>=0;
+      r.classList.toggle('hide', !(has || (nameHit && !state.cost && !state.pos)));
+    });
+  }
+  q.addEventListener('input', function(){ state.q=q.value.trim(); apply(); });
+  var fl=document.getElementById('filters');  // 英雄页有搜索框、没有这组筛选（它有自己的 #htools）
+  if(fl) fl.addEventListener('click', function(ev){
+    var b=ev.target.closest('.fb'); if(!b) return;
+    var f=b.dataset.f, v=b.dataset.v;
+    state[f]=v;
+    b.parentNode.querySelectorAll('.fb').forEach(function(x){ x.classList.toggle('on', x===b); });
+    apply();
+  });
+})();
+</script><script type="application/json" id="itd">{"c":{"BFSword":["暴风之剑","https://raw.communitydragon.org/16.22/game/assets/maps/tft/icons/items/hexcore/tft_item_bfsword.png"],"ChainVest":["锁子甲","https://raw.communitydragon.org/16.22/game/assets/maps/tft/icons/items/hexcore/tft_item_chainvest.png"],"FryingPan":["金锅锅","https://raw.communitydragon.org/16.22/game/assets/maps/tft/icons/items/hexcore/tft_item_fryingpan.png"],"GiantsBelt":["巨人腰带","https://raw.communitydragon.org/16.22/game/assets/maps/tft/icons/items/hexcore/tft_item_giantsbelt.png"],"NeedlesslyLargeRod":["无用大棒","https://raw.communitydragon.org/16.22/game/assets/maps/tft/icons/items/hexcore/tft_item_needlesslylargerod.png"],"NegatronCloak":["负极斗篷","https://raw.communitydragon.org/16.22/game/assets/maps/tft/icons/items/hexcore/tft_item_negatroncloak.png"],"RecurveBow":["反曲之弓","https://raw.communitydragon.org/16.22/game/assets/maps/tft/icons/items/hexcore/tft_item_recurvebow.png"],"SparringGloves":["拳套","https://raw.communitydragon.org/16.22/game/assets/maps/tft/icons/items/hexcore/tft_item_sparringgloves.png"],"Spatula":["金铲铲","https://raw.communitydragon.org/16.22/game/assets/maps/tft/icons/items/hexcore/tft_item_spatula.png"],"TearOfTheGoddess":["女神之泪","https://raw.communitydragon.org/16.22/game/assets/maps/tft/icons/items/hexcore/tft_item_tearofthegoddess.png"]},"i":{"DA_AdaptiveHelm":["NegatronCloak","TearOfTheGoddess","从所有来源中获得额外的15%法力值。携带者获得基于角色定位的一个额外加成： 坦克和战士：获得30护甲和魔抗。 其它角色定位：获得10%物理加…"],"DA_GargoyleStoneplate":["ChainVest","NegatronCloak","每有一个敌人正在以携带者为目标，携带者就会获得10护甲和10魔抗。"],"DA_InfinityEdge":["BFSword","SparringGloves","获得【技能暴击】。"],"DA_JeweledGauntlet":["NeedlesslyLargeRod","SparringGloves","获得【技能暴击】。"],"DA_LastWhisper":["RecurveBow","SparringGloves","来自攻击和技能的伤害会对目标施加持续3秒的30%护甲击碎。这个效果不会叠加。"],"DA_Morellonomicon":["GiantsBelt","NeedlesslyLargeRod","攻击和技能的伤害对敌人们造成持续10秒的1%灼烧效果和33%重伤效果。"],"DA_NashorsTooth":["GiantsBelt","RecurveBow","每次普攻提供2额外法力值，如果暴击则提升至4额外法力值。"],"DA_ProtectorsVow":["ChainVest","TearOfTheGoddess","战斗开始时：获得20法力值。 在40%生命值时，获得15法力值和相当于20%最大生命值的护盾值。"],"DA_SpearOfShojin":["BFSword","TearOfTheGoddess","每次普攻提供5额外法力值。"],"DA_StrikersFlail":["GiantsBelt","SparringGloves","暴击提供持续5秒的5%伤害增幅，可叠加至多4次。"],"DA_VoidStaff":["RecurveBow","TearOfTheGoddess","来自攻击和技能的伤害会对目标施加持续5秒的30%魔抗击碎。这个效果不会叠加。"],"DA_WarmogsArmor":["GiantsBelt","GiantsBelt","获得18%最大生命值。"]}}</script><script>
+(function(){
+  // 悬停（手机上点按）装备图标显示合成配方。数据在 #itd：c = 散件 id -> [名称, 图标]，i = 装备 id -> [散件, 散件, 效果] 或 [类别]
+  var D=JSON.parse(document.getElementById('itd').textContent), C=D.c, I=D.i, cur=null, touch=false;
+  var tip=document.createElement('div'); tip.className='tip'; tip.setAttribute('role','tooltip'); document.body.appendChild(tip);
+  function esc(s){ return String(s).replace(/[&<>"]/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }); }
+  function part(c){ var p=C[c]||[c,'']; return '<img src="'+esc(p[1])+'" alt="">'+esc(p[0]); }
+  function show(img){
+    var x=I[img.dataset.it]||[''], h='<div class="tt"><img src="'+esc(img.src)+'" alt="">'+esc(img.alt)+'</div>';
+    h+=x.length>1 ? '<div class="rc">'+part(x[0])+'<i>+</i>'+part(x[1])+'</div>'+(x[2] ? '<p>'+esc(x[2])+'</p>' : '')
+                  : '<p>'+(x[0] ? esc(x[0])+' · ' : '')+'不能用散件合成</p>';
+    tip.innerHTML=h; tip.style.display='block'; cur=img;
+    var r=img.getBoundingClientRect(), w=tip.offsetWidth, ht=tip.offsetHeight, top=r.bottom+8;
+    if(top+ht>innerHeight-8) top=Math.max(8, r.top-ht-8);
+    tip.style.left=Math.max(8, Math.min(r.left+r.width/2-w/2, innerWidth-w-8))+'px'; tip.style.top=top+'px';
+  }
+  function hide(){ tip.style.display='none'; cur=null; }
+  function hit(ev){ return ev.target.closest ? ev.target.closest('img[data-it]') : null; }
+  document.querySelectorAll('img[data-it]').forEach(function(i){ i.title=''; });  // 原生提示只在脚本不运行时出现
+  document.addEventListener('pointerdown', function(ev){ touch=ev.pointerType!=='mouse'; }, true);
+  document.addEventListener('pointerover', function(ev){ var i=hit(ev); if(i && ev.pointerType==='mouse') show(i); });
+  document.addEventListener('pointerout', function(ev){ if(ev.pointerType==='mouse' && hit(ev)) hide(); });
+  document.addEventListener('click', function(ev){ if(!touch) return; var i=hit(ev); if(i && i!==cur) show(i); else hide(); });
+  addEventListener('scroll', hide, {passive:true}); addEventListener('resize', hide);
+})();
+</script></body></html>
